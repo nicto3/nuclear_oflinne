@@ -55,15 +55,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Disable signed updates and upstream auto-update
+      - name: Disable signed updates, upstream auto-update and set build version
         shell: bash
         env:
           FORK_UPDATE_URL: https://github.com/${{ github.repository }}/releases/latest/download/latest.json
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           node -e "
           const fs = require('fs');
           const path = 'packages/player/src-tauri/tauri.conf.json';
           const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+          config.version = '1.51.' + (100 + Number(process.env.RUN_NUMBER));
           config.bundle.createUpdaterArtifacts = false;
           config.plugins.updater.endpoints = [process.env.FORK_UPDATE_URL];
           fs.writeFileSync(path, JSON.stringify(config, null, 2));
