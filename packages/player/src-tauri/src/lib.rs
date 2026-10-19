@@ -9,6 +9,7 @@ pub mod logging;
 pub mod mcp;
 pub mod mpd;
 pub mod net;
+pub mod offline;
 pub mod pagination;
 pub mod profile;
 mod setup;
@@ -41,6 +42,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         commands::copy_dir_recursive,
         commands::extract_zip,
         commands::download_file,
+        offline::offline_download,
+        offline::offline_delete,
         http::http_fetch,
         ytdlp::ytdlp_search,
         ytdlp::ytdlp_get_stream,

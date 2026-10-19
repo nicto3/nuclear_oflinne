@@ -35,7 +35,8 @@
     "playlists": "Плейлисты",
     "history": "History",
     "lyrics": "Lyrics",
-    "sources": "Sources"
+    "sources": "Sources",
+    "offline": "Офлайн"
   },
   "history": {
     "title": "History",
@@ -92,6 +93,24 @@
     "missingStreamingProvider": "Required streaming provider \"{{providerId}}\" is not available",
     "noProviders": "No providers installed"
   },
+  "offline": {
+    "title": "Офлайн",
+    "empty": "Пока ничего не скачано",
+    "emptyDescription": "Откройте плейлист, нажмите три точки и выберите «Скачать», чтобы слушать его без интернета.",
+    "play": "Играть",
+    "cancel": "Отмена",
+    "deleteTitle": "Удалить офлайн-копию",
+    "deleteConfirm": "Удалить офлайн-копию «{{name}}»? Сам плейлист останется в коллекции.",
+    "downloading": "Скачивание: {{completed}} из {{total}}",
+    "tracksSummary": "Треков: {{count}} из {{total}} · {{size}}",
+    "failedCount": "Не удалось скачать треков: {{count}}",
+    "toast": {
+      "started": "Скачиваю «{{name}}»",
+      "finished": "«{{name}}» доступен офлайн (треков: {{count}})",
+      "finishedWithErrors": "«{{name}}»: скачано {{count}}, не удалось {{failed}}",
+      "cancelled": "Скачивание «{{name}}» отменено"
+    }
+  },
   "discovery": {
     "recommendationError": "Failed to get recommendations"
   },
@@ -126,6 +145,8 @@
     "deleteConfirm": "Вы уверены, что хотите удалить плейлист?",
     "play": "Воспроизвести",
     "addToQueue": "Добавить в очередь",
+    "download": "Скачать",
+    "updateOffline": "Обновить офлайн-копию",
     "saveLocally": "Сохранить локально",
     "readOnlyBadge": "{{source}}",
     "readOnlyTooltip": "Этот плейлист от {{source}} доступен только для чтения. Сохраните локальную копию для редактирования.",

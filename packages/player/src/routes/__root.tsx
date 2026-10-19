@@ -4,6 +4,7 @@ import {
   CableIcon,
   DiscIcon,
   GaugeIcon,
+  HardDriveDownloadIcon,
   HistoryIcon,
   ListMusicIcon,
   MicVocalIcon,
@@ -116,6 +117,11 @@ const RootComponent = () => {
                   to="/sources"
                   icon={<CableIcon />}
                   label={t('sources')}
+                />
+                <SidebarNavigationItem
+                  to="/offline"
+                  icon={<HardDriveDownloadIcon />}
+                  label={t('offline')}
                 />
               </div>
               <SidebarNavigationItem

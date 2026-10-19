@@ -35,7 +35,8 @@
     "playlists": "プレイリスト",
     "history": "履歴",
     "lyrics": "歌詞",
-    "sources": "ソース"
+    "sources": "ソース",
+    "offline": "Offline"
   },
   "history": {
     "title": "履歴",
@@ -92,6 +93,24 @@
     "missingStreamingProvider": "必要なストリーミングプロバイダー \"{{providerId}}\" が利用できません",
     "noProviders": "プロバイダーがインストールされていません"
   },
+  "offline": {
+    "title": "Offline",
+    "empty": "Nothing downloaded yet",
+    "emptyDescription": "Open a playlist, click the three dots and choose Download to keep it for offline listening.",
+    "play": "Play",
+    "cancel": "Cancel",
+    "deleteTitle": "Remove offline copy",
+    "deleteConfirm": "Remove the offline copy of \"{{name}}\"? The playlist itself stays in your collection.",
+    "downloading": "Downloading {{completed}} of {{total}}",
+    "tracksSummary": "{{count}} of {{total}} tracks · {{size}}",
+    "failedCount": "{{count}} tracks could not be downloaded",
+    "toast": {
+      "started": "Downloading \"{{name}}\"",
+      "finished": "\"{{name}}\" is available offline ({{count}} tracks)",
+      "finishedWithErrors": "\"{{name}}\": {{count}} tracks downloaded, {{failed}} failed",
+      "cancelled": "Download of \"{{name}}\" cancelled"
+    }
+  },
   "discovery": {
     "recommendationError": "おすすめの取得に失敗しました"
   },
@@ -126,6 +145,8 @@
     "deleteConfirm": "このプレイリストを削除してもよろしいですか？",
     "play": "再生",
     "addToQueue": "キューに追加",
+    "download": "Download",
+    "updateOffline": "Update offline copy",
     "saveLocally": "ローカルに保存",
     "readOnlyBadge": "{{source}}",
     "readOnlyTooltip": "このプレイリストは{{source}}のもので読み取り専用です。編集するにはローカルコピーを保存してください。",

@@ -5,6 +5,11 @@ import { stripResolutionState } from '@nuclearplayer/model';
 
 import { useQueueStore } from '../../stores/queueStore';
 import { useSoundStore } from '../../stores/soundStore';
+import {
+  findOfflineCandidate,
+  isOfflineCandidate,
+} from '../offline/offlineCandidates';
+import { forgetOfflineTrack } from '../offline/offlineDownloads';
 import { playbackManager } from '../playback';
 import { hasActiveStreamingProvider, streamingHost } from '../streamingHost';
 import { AudioSourceFactory } from './audioSource';
@@ -30,12 +35,27 @@ export class StreamResolution {
     }
     updateItemState(item.id, { status: 'loading', error: undefined });
 
+    const offlineCandidate = findOfflineCandidate(item.track);
+    if (offlineCandidate) {
+      updateItemState(item.id, {
+        track: { ...item.track, streamCandidates: [offlineCandidate] },
+      });
+      await this.startPlayback(item, offlineCandidate, signal, options);
+      return;
+    }
+
+    const cachedHead = item.track.streamCandidates?.[0];
+    const trackToResolve =
+      cachedHead && isOfflineCandidate(cachedHead)
+        ? stripResolutionState(item.track)
+        : item.track;
+
     if (!hasActiveStreamingProvider()) {
       this.failItem(item.id, 'streaming:errors.noProviderAvailable');
       return;
     }
 
-    const candidates = await candidatesForTrack(item.track);
+    const candidates = await candidatesForTrack(trackToResolve);
     if (signal.aborted) {
       return;
     }
@@ -54,6 +74,16 @@ export class StreamResolution {
     item: QueueItem,
     options: ResolveOptions,
   ): Promise<void> {
+    const headCandidate = item.track.streamCandidates?.[0];
+    if (headCandidate && isOfflineCandidate(headCandidate)) {
+      await forgetOfflineTrack(item.track);
+      const strippedTrack = stripResolutionState(item.track);
+      useQueueStore
+        .getState()
+        .updateItemState(item.id, { track: strippedTrack });
+      return this.resolve({ ...item, track: strippedTrack }, options);
+    }
+
     const track = {
       ...item.track,
       streamCandidates: item.track.streamCandidates?.map((candidate) =>

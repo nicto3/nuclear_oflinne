@@ -1,3 +1,5 @@
+use std::io::SeekFrom;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::body::Body;
@@ -8,6 +10,7 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use reqwest::Client;
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 
@@ -126,6 +129,115 @@ async fn proxy_stream(
     response
 }
 
+fn parse_range(value: &str, total: u64) -> Option<(u64, u64)> {
+    let spec = value.strip_prefix("bytes=")?;
+    let (start_part, end_part) = spec.split_once('-')?;
+
+    if start_part.is_empty() {
+        let suffix: u64 = end_part.parse().ok()?;
+        if suffix == 0 {
+            return None;
+        }
+        return Some((total.saturating_sub(suffix), total - 1));
+    }
+
+    let start: u64 = start_part.parse().ok()?;
+    let end = if end_part.is_empty() {
+        total - 1
+    } else {
+        end_part.parse::<u64>().ok()?.min(total - 1)
+    };
+
+    if start > end || start >= total {
+        None
+    } else {
+        Some((start, end))
+    }
+}
+
+async fn serve_offline(
+    State(offline_dir): State<Arc<PathBuf>>,
+    Path(file_name): Path<String>,
+    headers: HeaderMap,
+) -> Response<Body> {
+    if !crate::offline::is_safe_file_name(&file_name) {
+        return error_response(StatusCode::BAD_REQUEST, "Invalid file name".to_string());
+    }
+
+    let path = offline_dir.join(&file_name);
+    let mut file = match tokio::fs::File::open(&path).await {
+        Ok(file) => file,
+        Err(err) => {
+            log::error!("[StreamServer] Offline file {file_name} not available: {err}");
+            return error_response(StatusCode::NOT_FOUND, format!("Offline file not found: {err}"));
+        }
+    };
+
+    let total = match file.metadata().await {
+        Ok(metadata) => metadata.len(),
+        Err(err) => {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, err.to_string());
+        }
+    };
+    if total == 0 {
+        return error_response(StatusCode::NOT_FOUND, "Offline file is empty".to_string());
+    }
+
+    let requested_range = headers
+        .get(header::RANGE)
+        .and_then(|value| value.to_str().ok());
+
+    let (status, start, end) = match requested_range {
+        None => (StatusCode::OK, 0, total - 1),
+        Some(value) => match parse_range(value, total) {
+            Some((start, end)) => (StatusCode::PARTIAL_CONTENT, start, end),
+            None => {
+                let mut response = Response::builder()
+                    .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                    .header(header::CONTENT_RANGE, format!("bytes */{total}"))
+                    .body(Body::empty())
+                    .unwrap();
+                cors_headers(response.headers_mut());
+                return response;
+            }
+        },
+    };
+
+    let length = end - start + 1;
+    if start > 0 {
+        if let Err(err) = file.seek(SeekFrom::Start(start)).await {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, err.to_string());
+        }
+    }
+
+    let mut buffer = vec![0u8; length as usize];
+    if let Err(err) = file.read_exact(&mut buffer).await {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, err.to_string());
+    }
+
+    let content_type = mime_guess::from_path(&path)
+        .first_or_octet_stream()
+        .to_string();
+
+    let mut response = Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::CONTENT_LENGTH, length.to_string())
+        .header(header::ACCEPT_RANGES, "bytes")
+        .body(Body::from(buffer))
+        .unwrap();
+
+    if status == StatusCode::PARTIAL_CONTENT {
+        response.headers_mut().insert(
+            header::CONTENT_RANGE,
+            format!("bytes {start}-{end}/{total}").parse().unwrap(),
+        );
+    }
+
+    cors_headers(response.headers_mut());
+    response
+}
+
 async fn options_handler() -> Response<Body> {
     let mut response = Response::builder()
         .status(StatusCode::NO_CONTENT)
@@ -135,15 +247,28 @@ async fn options_handler() -> Response<Body> {
     response
 }
 
-async fn start_server(client: Arc<Client>, ready: oneshot::Sender<Result<u16, String>>) {
+async fn start_server(
+    client: Arc<Client>,
+    offline_dir: PathBuf,
+    ready: oneshot::Sender<Result<u16, String>>,
+) {
     let cancellation_token = CancellationToken::new();
 
-    let router = axum::Router::new()
+    let proxy_router = axum::Router::new()
         .route(
             "/stream/{encoded_url}",
             get(proxy_stream).options(options_handler),
         )
         .with_state(client);
+
+    let offline_router = axum::Router::new()
+        .route(
+            "/offline/{file_name}",
+            get(serve_offline).options(options_handler),
+        )
+        .with_state(Arc::new(offline_dir));
+
+    let router = proxy_router.merge(offline_router);
 
     let tcp_listener =
         match crate::net::bind_first_available_port("127.0.0.1", PORT_START, PORT_END).await {
@@ -178,8 +303,13 @@ pub fn init_stream_server(app_handle: AppHandle) {
             .expect("Failed to create HTTP client for stream server"),
     );
 
+    let offline_dir = crate::offline::offline_dir(&app_handle).unwrap_or_else(|message| {
+        log::error!("[StreamServer] Failed to resolve offline directory: {message}");
+        std::env::temp_dir().join("nuclear-offline")
+    });
+
     let (ready_tx, ready_rx) = oneshot::channel();
-    tauri::async_runtime::spawn(start_server(client, ready_tx));
+    tauri::async_runtime::spawn(start_server(client, offline_dir, ready_tx));
 
     let handle = app_handle.clone();
     tauri::async_runtime::spawn(async move {

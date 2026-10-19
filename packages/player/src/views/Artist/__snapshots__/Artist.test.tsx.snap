@@ -646,6 +646,59 @@ exports[`Artist view > with bio provider > (Snapshot) renders the artist view 1`
                   </div>
                 </div>
               </a>
+              <a
+                href="/offline"
+              >
+                <div>
+                  <div
+                    class="flex w-full items-center overflow-hidden rounded-md border-(length:--border-width) border-transparent"
+                    data-testid="sidebar-navigation-item"
+                  >
+                    <div
+                      class="flex size-8 shrink-0 items-center justify-center"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-hard-drive-download"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M12 2v8"
+                        />
+                        <path
+                          d="m16 6-4 4-4-4"
+                        />
+                        <rect
+                          height="8"
+                          rx="2"
+                          width="20"
+                          x="2"
+                          y="14"
+                        />
+                        <path
+                          d="M6 18h.01"
+                        />
+                        <path
+                          d="M10 18h.01"
+                        />
+                      </svg>
+                    </div>
+                    <span
+                      class="text-sm whitespace-nowrap transition-opacity duration-150 opacity-100"
+                    >
+                      Offline
+                    </span>
+                  </div>
+                </div>
+              </a>
             </div>
             <div>
               <div
@@ -2393,6 +2446,59 @@ exports[`Artist view > with social stats provider > (Snapshot) renders the artis
                       class="text-sm whitespace-nowrap transition-opacity duration-150 opacity-100"
                     >
                       Sources
+                    </span>
+                  </div>
+                </div>
+              </a>
+              <a
+                href="/offline"
+              >
+                <div>
+                  <div
+                    class="flex w-full items-center overflow-hidden rounded-md border-(length:--border-width) border-transparent"
+                    data-testid="sidebar-navigation-item"
+                  >
+                    <div
+                      class="flex size-8 shrink-0 items-center justify-center"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        class="lucide lucide-hard-drive-download"
+                        fill="none"
+                        height="24"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M12 2v8"
+                        />
+                        <path
+                          d="m16 6-4 4-4-4"
+                        />
+                        <rect
+                          height="8"
+                          rx="2"
+                          width="20"
+                          x="2"
+                          y="14"
+                        />
+                        <path
+                          d="M6 18h.01"
+                        />
+                        <path
+                          d="M10 18h.01"
+                        />
+                      </svg>
+                    </div>
+                    <span
+                      class="text-sm whitespace-nowrap transition-opacity duration-150 opacity-100"
+                    >
+                      Offline
                     </span>
                   </div>
                 </div>

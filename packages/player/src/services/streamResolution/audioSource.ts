@@ -3,6 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { AudioSource } from '@nuclearplayer/hifi';
 import type { StreamCandidate } from '@nuclearplayer/model';
 
+import { fileNameFromOfflineUrl, isOfflineUrl } from '../offline/offlineUrl';
+
 type ResolvedStream = NonNullable<StreamCandidate['stream']>;
 
 export class AudioSourceFactory {
@@ -18,19 +20,22 @@ export class AudioSourceFactory {
       return { url: stream.url, protocol: 'hls' };
     }
 
-    const proxyUrl = this.proxiedUrl(stream.url, await this.streamServerPort());
+    const port = await this.streamServerPort();
+    const sourceUrl = isOfflineUrl(stream.url)
+      ? this.offlineUrl(stream.url, port)
+      : this.proxiedUrl(stream.url, port);
 
     const durationMs = stream.durationMs ?? candidate.durationMs;
     if (this.isFmp4(stream) && durationMs) {
       return {
-        url: proxyUrl,
+        url: sourceUrl,
         protocol: 'mse',
         durationSeconds: durationMs / 1000,
         codec: stream.codec,
       };
     }
 
-    return { url: proxyUrl, protocol: stream.protocol };
+    return { url: sourceUrl, protocol: stream.protocol };
   }
 
   private async streamServerPort(): Promise<number> {
@@ -48,6 +53,11 @@ export class AudioSourceFactory {
       .replace(/\//g, '_')
       .replace(/=+$/, '');
     return `http://127.0.0.1:${port}/stream/${encoded}`;
+  }
+
+  private offlineUrl(url: string, port: number): string {
+    const fileName = fileNameFromOfflineUrl(url);
+    return `http://127.0.0.1:${port}/offline/${encodeURIComponent(fileName)}`;
   }
 
   private isFmp4(stream: ResolvedStream): boolean {

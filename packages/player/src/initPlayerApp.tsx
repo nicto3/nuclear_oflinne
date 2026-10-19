@@ -20,6 +20,7 @@ import { initMpdHandler } from './services/mpd';
 import { initPlaybackEventBridge } from './services/playbackEventBridge';
 import { hydratePluginsFromRegistry } from './services/plugins/pluginBootstrap';
 import { initializeFavoritesStore } from './stores/favoritesStore';
+import { initializeOfflineStore } from './stores/offlineStore';
 import { initializePlaylistStore } from './stores/playlistStore';
 import { initializeQueueStore } from './stores/queueStore';
 import { initializeSettingsStore } from './stores/settingsStore';
@@ -34,6 +35,7 @@ const initializeStores = () =>
     .then(() => initializeQueueStore())
     .then(() => initializeFavoritesStore())
     .then(() => initializeStreamVerificationStore())
+    .then(() => initializeOfflineStore())
     .then(() => initializePlaylistStore());
 
 const initRemoteControl = () =>

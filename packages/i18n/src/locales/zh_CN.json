@@ -35,7 +35,8 @@
     "playlists": "Playlists",
     "history": "History",
     "lyrics": "Lyrics",
-    "sources": "Sources"
+    "sources": "Sources",
+    "offline": "Offline"
   },
   "history": {
     "title": "History",
@@ -92,6 +93,24 @@
     "missingStreamingProvider": "Required streaming provider \"{{providerId}}\" is not available",
     "noProviders": "No providers installed"
   },
+  "offline": {
+    "title": "Offline",
+    "empty": "Nothing downloaded yet",
+    "emptyDescription": "Open a playlist, click the three dots and choose Download to keep it for offline listening.",
+    "play": "Play",
+    "cancel": "Cancel",
+    "deleteTitle": "Remove offline copy",
+    "deleteConfirm": "Remove the offline copy of \"{{name}}\"? The playlist itself stays in your collection.",
+    "downloading": "Downloading {{completed}} of {{total}}",
+    "tracksSummary": "{{count}} of {{total}} tracks · {{size}}",
+    "failedCount": "{{count}} tracks could not be downloaded",
+    "toast": {
+      "started": "Downloading \"{{name}}\"",
+      "finished": "\"{{name}}\" is available offline ({{count}} tracks)",
+      "finishedWithErrors": "\"{{name}}\": {{count}} tracks downloaded, {{failed}} failed",
+      "cancelled": "Download of \"{{name}}\" cancelled"
+    }
+  },
   "discovery": {
     "recommendationError": "Failed to get recommendations"
   },
@@ -126,6 +145,8 @@
     "deleteConfirm": "Are you sure you want to delete this playlist?",
     "play": "Play",
     "addToQueue": "Add to queue",
+    "download": "Download",
+    "updateOffline": "Update offline copy",
     "saveLocally": "Save locally",
     "readOnlyBadge": "{{source}}",
     "readOnlyTooltip": "This playlist is from {{source}} and is read-only. Save a local copy to edit it.",
