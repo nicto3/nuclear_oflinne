@@ -1,0 +1,82 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DO_NOT_TRACK: 1
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v6
+
+      - name: Get PNPM store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup PNPM cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            packages/player/src-tauri/target/
+          key: ${{ runner.os }}-cargo-v2-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Disable signed updates and upstream auto-update
+        shell: bash
+        env:
+          FORK_UPDATE_URL: https://github.com/${{ github.repository }}/releases/latest/download/latest.json
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = 'packages/player/src-tauri/tauri.conf.json';
+          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+          config.bundle.createUpdaterArtifacts = false;
+          config.plugins.updater.endpoints = [process.env.FORK_UPDATE_URL];
+          fs.writeFileSync(path, JSON.stringify(config, null, 2));
+          "
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v1
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuclear-offline-windows
+          if-no-files-found: error
+          path: |
+            packages/player/src-tauri/target/release/bundle/nsis/*-setup.exe
+            packages/player/src-tauri/target/release/bundle/msi/*.msi
