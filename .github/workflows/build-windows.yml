@@ -52,6 +52,30 @@ jobs:
             packages/player/src-tauri/target/
           key: ${{ runner.os }}-cargo-v2-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Move uploaded files into place
+        shell: bash
+        run: |
+          move() {
+            if [ -f "$1" ]; then
+              mkdir -p "$(dirname "$2")"
+              cp -f "$1" "$2"
+              echo "moved $1 -> $2"
+            fi
+          }
+          RS=packages/player/src-tauri/src
+          TS=packages/player/src
+          move lib.rs $RS/lib.rs
+          move offline.rs $RS/offline.rs
+          move stream_server.rs $RS/stream_server.rs
+          move offlineCandidates.ts $TS/services/offline/offlineCandidates.ts
+          move offlineDownloads.ts $TS/services/offline/offlineDownloads.ts
+          move offlineUrl.ts $TS/services/offline/offlineUrl.ts
+          move offline.ts $TS/services/tauri/offline.ts
+          move audioSource.ts $TS/services/streamResolution/audioSource.ts
+          move offlineStore.ts $TS/stores/offlineStore.ts
+          move OfflinePlaylistRow.tsx $TS/views/Offline/components/OfflinePlaylistRow.tsx
+          grep -q offline_download_hls $RS/offline.rs || (echo "HLS patch is missing" && exit 1)
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
