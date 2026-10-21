@@ -10,6 +10,7 @@ pub mod mcp;
 pub mod mpd;
 pub mod net;
 pub mod offline;
+pub mod tray;
 pub mod pagination;
 pub mod profile;
 mod setup;
@@ -45,6 +46,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         offline::offline_download,
         offline::offline_download_hls,
         offline::offline_delete,
+        tray::show_main_window,
+        tray::hide_mini_player,
         http::http_fetch,
         ytdlp::ytdlp_search,
         ytdlp::ytdlp_get_stream,
@@ -117,6 +120,7 @@ pub fn run() {
                     tauri_plugin_window_state::StateFlags::all()
                         .difference(tauri_plugin_window_state::StateFlags::VISIBLE),
                 )
+                .with_denylist(&["miniplayer"])
                 .build(),
         )
         .plugin(setup::log_plugin());
@@ -128,6 +132,7 @@ pub fn run() {
     }
 
     builder
+        .on_window_event(tray::handle_window_event)
         .invoke_handler(specta_builder.invoke_handler())
         .manage(profile::DefaultIdentifier(default_identifier))
         .setup(move |app| {
@@ -142,6 +147,7 @@ pub fn run() {
             stream_server::init_stream_server(app.handle().clone());
             discord::init_discord(app.handle().clone());
             history::init_history(app.handle().clone());
+            tray::init_tray(app.handle().clone());
 
             #[cfg(target_os = "linux")]
             maximize_for_gamescope(app);
