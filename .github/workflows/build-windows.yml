@@ -58,15 +58,25 @@ jobs:
           move() {
             if [ -f "$1" ]; then
               mkdir -p "$(dirname "$2")"
-              cp -f "$1" "$2"
+              mv -f "$1" "$2"
               echo "moved $1 -> $2"
             fi
           }
-          RS=packages/player/src-tauri/src
+          TAURI=packages/player/src-tauri
+          RS=$TAURI/src
           TS=packages/player/src
+          move Cargo.toml $TAURI/Cargo.toml
+          move miniplayer.json $TAURI/capabilities/miniplayer.json
           move lib.rs $RS/lib.rs
           move offline.rs $RS/offline.rs
           move stream_server.rs $RS/stream_server.rs
+          move tray.rs $RS/tray.rs
+          move main.tsx $TS/main.tsx
+          move initPlayerApp.tsx $TS/initPlayerApp.tsx
+          move MiniPlayer.tsx $TS/miniPlayer/MiniPlayer.tsx
+          move initMiniPlayer.tsx $TS/miniPlayer/initMiniPlayer.tsx
+          move miniPlayerTypes.ts $TS/miniPlayer/miniPlayerTypes.ts
+          move miniPlayerBridge.ts $TS/services/miniPlayer/miniPlayerBridge.ts
           move offlineCandidates.ts $TS/services/offline/offlineCandidates.ts
           move offlineDownloads.ts $TS/services/offline/offlineDownloads.ts
           move offlineUrl.ts $TS/services/offline/offlineUrl.ts
@@ -75,6 +85,7 @@ jobs:
           move offlineStore.ts $TS/stores/offlineStore.ts
           move OfflinePlaylistRow.tsx $TS/views/Offline/components/OfflinePlaylistRow.tsx
           grep -q offline_download_hls $RS/offline.rs || (echo "HLS patch is missing" && exit 1)
+          grep -q init_tray $RS/lib.rs || (echo "Tray patch is missing" && exit 1)
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
