@@ -55,37 +55,22 @@ jobs:
       - name: Move uploaded files into place
         shell: bash
         run: |
-          move() {
-            if [ -f "$1" ]; then
-              mkdir -p "$(dirname "$2")"
-              mv -f "$1" "$2"
-              echo "moved $1 -> $2"
+          if [ ! -f layout.txt ]; then
+            echo "layout.txt is missing: upload it together with the other files"
+            exit 1
+          fi
+          tr -d '\r' < layout.txt | while read -r src dest; do
+            case "$src" in ''|\#*) continue ;; esac
+            if [ -f "$src" ]; then
+              mkdir -p "$(dirname "$dest")"
+              mv -f "$src" "$dest"
+              echo "moved $src -> $dest"
             fi
-          }
-          TAURI=packages/player/src-tauri
-          RS=$TAURI/src
-          TS=packages/player/src
-          move Cargo.toml $TAURI/Cargo.toml
-          move miniplayer.json $TAURI/capabilities/miniplayer.json
-          move lib.rs $RS/lib.rs
-          move offline.rs $RS/offline.rs
-          move stream_server.rs $RS/stream_server.rs
-          move tray.rs $RS/tray.rs
-          move main.tsx $TS/main.tsx
-          move initPlayerApp.tsx $TS/initPlayerApp.tsx
-          move MiniPlayer.tsx $TS/miniPlayer/MiniPlayer.tsx
-          move initMiniPlayer.tsx $TS/miniPlayer/initMiniPlayer.tsx
-          move miniPlayerTypes.ts $TS/miniPlayer/miniPlayerTypes.ts
-          move miniPlayerBridge.ts $TS/services/miniPlayer/miniPlayerBridge.ts
-          move offlineCandidates.ts $TS/services/offline/offlineCandidates.ts
-          move offlineDownloads.ts $TS/services/offline/offlineDownloads.ts
-          move offlineUrl.ts $TS/services/offline/offlineUrl.ts
-          move offline.ts $TS/services/tauri/offline.ts
-          move audioSource.ts $TS/services/streamResolution/audioSource.ts
-          move offlineStore.ts $TS/stores/offlineStore.ts
-          move OfflinePlaylistRow.tsx $TS/views/Offline/components/OfflinePlaylistRow.tsx
+          done
+          RS=packages/player/src-tauri/src
           grep -q offline_download_hls $RS/offline.rs || (echo "HLS patch is missing" && exit 1)
           grep -q init_tray $RS/lib.rs || (echo "Tray patch is missing" && exit 1)
+          grep -q offline_import_file $RS/offline.rs || (echo "Offline library patch is missing" && exit 1)
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
