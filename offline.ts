@@ -10,6 +10,12 @@ export const offlineDownloadHls = (
   dirName: string,
 ): Promise<number> => invoke<number>('offline_download_hls', { url, dirName });
 
+export const offlineImportFile = (
+  srcPath: string,
+  destName: string,
+): Promise<number> =>
+  invoke<number>('offline_import_file', { srcPath, destName });
+
 export const offlineDelete = async (fileName: string): Promise<void> => {
   await invoke('offline_delete', { fileName });
 };

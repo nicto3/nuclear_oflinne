@@ -472,3 +472,32 @@ pub async fn offline_delete(app_handle: AppHandle, file_name: String) -> Result<
     }
     Ok(())
 }
+
+#[command]
+#[specta::specta]
+pub async fn offline_import_file(
+    app_handle: AppHandle,
+    src_path: String,
+    dest_name: String,
+) -> Result<u64, String> {
+    if !is_safe_file_name(&dest_name) {
+        return Err(format!("Invalid file name: {dest_name}"));
+    }
+
+    let source = PathBuf::from(&src_path);
+    let metadata = tokio::fs::metadata(&source)
+        .await
+        .map_err(|err| err.to_string())?;
+    if !metadata.is_file() {
+        return Err("Selected path is not a file".to_string());
+    }
+
+    let dir = offline_dir(&app_handle)?;
+    tokio::fs::create_dir_all(&dir)
+        .await
+        .map_err(|err| err.to_string())?;
+
+    tokio::fs::copy(&source, dir.join(&dest_name))
+        .await
+        .map_err(|err| err.to_string())
+}

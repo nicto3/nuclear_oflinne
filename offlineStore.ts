@@ -27,19 +27,23 @@ export type OfflineTrackEntry = {
 export type OfflinePlaylistEntry = {
   playlistId: string;
   name: string;
+  description?: string;
+  coverDataUrl?: string;
   trackKeys: string[];
-  totalCount: number;
+  totalCount?: number;
   downloadedAtIso: string;
+  updatedAtIso?: string;
 };
 
 export type DownloadJobStatus = 'running' | 'done' | 'cancelled';
 
 export type DownloadJob = {
-  playlistId: string;
+  jobId: string;
   name: string;
   total: number;
   completed: number;
   failed: number;
+  skipped: number;
   currentTitle?: string;
   lastError?: string;
   status: DownloadJobStatus;
@@ -57,13 +61,21 @@ type OfflineState = {
 
   loadFromDisk: () => Promise<void>;
   addTrack: (entry: OfflineTrackEntry) => Promise<void>;
+  updateTrack: (
+    key: string,
+    patch: Partial<OfflineTrackEntry>,
+  ) => Promise<void>;
   removeTracks: (keys: string[]) => Promise<void>;
   setPlaylist: (entry: OfflinePlaylistEntry) => Promise<void>;
+  updatePlaylist: (
+    playlistId: string,
+    patch: Partial<OfflinePlaylistEntry>,
+  ) => Promise<void>;
   removePlaylist: (playlistId: string) => Promise<void>;
 
   startJob: (job: DownloadJob) => void;
-  updateJob: (playlistId: string, patch: Partial<DownloadJob>) => void;
-  dismissJob: (playlistId: string) => void;
+  updateJob: (jobId: string, patch: Partial<DownloadJob>) => void;
+  dismissJob: (jobId: string) => void;
 };
 
 const saveToDisk = async (): Promise<void> => {
@@ -95,17 +107,54 @@ export const useOfflineStore = create<OfflineState>((set, get) => ({
     await saveToDisk();
   },
 
-  removeTracks: async (keys) => {
-    const remaining = { ...get().tracks };
-    for (const key of keys) {
-      delete remaining[key];
+  updateTrack: async (key, patch) => {
+    const current = get().tracks[key];
+    if (!current) {
+      return;
     }
-    set({ tracks: remaining });
+    set({ tracks: { ...get().tracks, [key]: { ...current, ...patch } } });
+    await saveToDisk();
+  },
+
+  removeTracks: async (keys) => {
+    const removed = new Set(keys);
+    const remainingTracks = { ...get().tracks };
+    for (const key of keys) {
+      delete remainingTracks[key];
+    }
+    const updatedPlaylists = Object.fromEntries(
+      Object.entries(get().playlists).map(([id, playlist]) => [
+        id,
+        {
+          ...playlist,
+          trackKeys: playlist.trackKeys.filter((key) => !removed.has(key)),
+        },
+      ]),
+    );
+    set({ tracks: remainingTracks, playlists: updatedPlaylists });
     await saveToDisk();
   },
 
   setPlaylist: async (entry) => {
     set({ playlists: { ...get().playlists, [entry.playlistId]: entry } });
+    await saveToDisk();
+  },
+
+  updatePlaylist: async (playlistId, patch) => {
+    const current = get().playlists[playlistId];
+    if (!current) {
+      return;
+    }
+    set({
+      playlists: {
+        ...get().playlists,
+        [playlistId]: {
+          ...current,
+          ...patch,
+          updatedAtIso: new Date().toISOString(),
+        },
+      },
+    });
     await saveToDisk();
   },
 
@@ -117,20 +166,20 @@ export const useOfflineStore = create<OfflineState>((set, get) => ({
   },
 
   startJob: (job) => {
-    set({ jobs: { ...get().jobs, [job.playlistId]: job } });
+    set({ jobs: { ...get().jobs, [job.jobId]: job } });
   },
 
-  updateJob: (playlistId, patch) => {
-    const current = get().jobs[playlistId];
+  updateJob: (jobId, patch) => {
+    const current = get().jobs[jobId];
     if (!current) {
       return;
     }
-    set({ jobs: { ...get().jobs, [playlistId]: { ...current, ...patch } } });
+    set({ jobs: { ...get().jobs, [jobId]: { ...current, ...patch } } });
   },
 
-  dismissJob: (playlistId) => {
+  dismissJob: (jobId) => {
     const remaining = { ...get().jobs };
-    delete remaining[playlistId];
+    delete remaining[jobId];
     set({ jobs: remaining });
   },
 }));

@@ -46,6 +46,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         offline::offline_download,
         offline::offline_download_hls,
         offline::offline_delete,
+        offline::offline_import_file,
         tray::show_main_window,
         tray::hide_mini_player,
         http::http_fetch,
