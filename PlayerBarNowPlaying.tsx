@@ -1,0 +1,79 @@
+import { Music2 } from 'lucide-react';
+import { FC, ReactNode } from 'react';
+
+import { cn } from '../../utils';
+
+type PlayerBarNowPlayingProps = {
+  title: string;
+  artist: string;
+  coverUrl?: string;
+  className?: string;
+  action?: ReactNode;
+  onTitleClick?: () => void;
+  onArtistClick?: () => void;
+  onCoverClick?: () => void;
+  coverLabel?: string;
+};
+
+export const PlayerBarNowPlaying: FC<PlayerBarNowPlayingProps> = ({
+  title,
+  artist,
+  coverUrl,
+  className = '',
+  action,
+  onTitleClick,
+  onArtistClick,
+  onCoverClick,
+  coverLabel,
+}) => (
+  <div className={cn('flex min-w-0 items-center gap-3', className)}>
+    <div
+      className={cn(
+        'border-border bg-muted size-12 shrink-0 overflow-hidden rounded-md border-(length:--border-width)',
+        { 'cursor-pointer hover:opacity-80': onCoverClick },
+      )}
+      onClick={onCoverClick}
+      role={onCoverClick ? 'button' : undefined}
+      aria-label={onCoverClick ? coverLabel : undefined}
+      title={onCoverClick ? coverLabel : undefined}
+      data-testid="player-now-playing-cover"
+    >
+      {coverUrl ? (
+        <img
+          src={coverUrl}
+          alt=""
+          className="size-full object-cover select-none"
+          data-testid="player-now-playing-thumbnail"
+        />
+      ) : (
+        <div
+          className="text-muted-foreground flex size-full items-center justify-center"
+          data-testid="player-now-playing-placeholder"
+        >
+          <Music2 size={20} />
+        </div>
+      )}
+    </div>
+    <div className="min-w-0 flex-1">
+      <div
+        className={cn('truncate text-sm font-bold', {
+          'cursor-pointer hover:underline': onTitleClick,
+        })}
+        data-testid="now-playing-title"
+        onClick={onTitleClick}
+      >
+        {title}
+      </div>
+      <div
+        className={cn('truncate text-xs opacity-70', {
+          'cursor-pointer hover:underline': onArtistClick,
+        })}
+        data-testid="player-now-playing-artist"
+        onClick={onArtistClick}
+      >
+        {artist}
+      </div>
+    </div>
+    {action}
+  </div>
+);

@@ -149,7 +149,15 @@
       "create": "Create",
       "save": "Save",
       "selectAll": "Select all",
-      "clear": "Clear"
+      "clear": "Clear",
+      "inPlaylist": "In the playlist",
+      "addFromLibrary": "Add from your library",
+      "position": "Position",
+      "drag": "Drag to reorder",
+      "removeTrack": "Remove from playlist",
+      "noneSelected": "No tracks added yet. Pick some from your library below.",
+      "addAll": "Add all shown",
+      "allAdded": "All your downloaded tracks are already in this playlist."
     },
     "cover": {
       "choose": "Choose image",

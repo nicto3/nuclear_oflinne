@@ -20,8 +20,13 @@ offline.ts packages/player/src/services/tauri/offline.ts
 audioSource.ts packages/player/src/services/streamResolution/audioSource.ts
 offlineStore.ts packages/player/src/stores/offlineStore.ts
 offlineEditorStore.ts packages/player/src/stores/offlineEditorStore.ts
+fullscreenPlayerStore.ts packages/player/src/stores/fullscreenPlayerStore.ts
+useDominantColor.ts packages/player/src/hooks/useDominantColor.ts
 Offline.tsx packages/player/src/views/Offline/Offline.tsx
 ConnectedTrackContextMenu.tsx packages/player/src/components/ConnectedTrackContextMenu.tsx
+FullscreenPlayer.tsx packages/player/src/components/FullscreenPlayer.tsx
+ConnectedNowPlaying.tsx packages/player/src/components/ConnectedPlayerBar/ConnectedNowPlaying.tsx
+PlayerBarNowPlaying.tsx packages/ui/src/components/PlayerBar/PlayerBarNowPlaying.tsx
 PlaylistDetailActions.tsx packages/player/src/views/PlaylistDetail/components/PlaylistDetailActions.tsx
 __root.tsx packages/player/src/routes/__root.tsx
 CoverPicker.tsx packages/player/src/views/Offline/components/CoverPicker.tsx

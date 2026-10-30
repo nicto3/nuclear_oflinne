@@ -35,6 +35,7 @@ import { ConnectedTitleBar } from '../components/ConnectedTitleBar';
 import { ConnectedTopBar } from '../components/ConnectedTopBar';
 import { DevTools } from '../components/DevTools';
 import { FlatpakWarningBanner } from '../components/FlatpakWarningBanner';
+import { FullscreenPlayer } from '../components/FullscreenPlayer';
 import { SoundProvider } from '../components/SoundProvider';
 import { StreamResolver } from '../components/StreamResolver';
 import { GlobalShortcuts } from '../shortcuts';
@@ -153,6 +154,7 @@ const RootComponent = () => {
       <ConnectedPlayerBar />
       <Toaster />
       <OfflineTrackEditorDialog />
+      <FullscreenPlayer />
       <ConnectedSettingsModal />
       <DevTools />
     </PlayerShell>
