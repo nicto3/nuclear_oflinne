@@ -20,7 +20,11 @@
 
 <h1>ниже скриншотики скину а ориг описание оставлю</h1>
 
-<div align="center">
+<div align="center"
+  css{
+    width: 100px;
+  height: 100px;
+  }>
   
 <div align="left"><img width="1679" height="1049" alt="image" src="https://github.com/user-attachments/assets/5269b15a-a382-4d76-9f9f-9b9171d52cb7" /></div>
 <div align="right"><img width="1679" height="1049" alt="image" src="https://github.com/user-attachments/assets/f92f3c36-e8a4-4a7e-af63-23d5d3a26164" />
