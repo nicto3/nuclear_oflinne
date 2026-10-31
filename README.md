@@ -1,3 +1,34 @@
+<h1>Цель этого проэкта добавить офлайн режим в neclear_player</h1>
+
+<br>
+
+
+<h1>в обычном плеере музыка чёрти как воспроизводиться, я поддумал что если я каждую буду качать себе на комп будет гараздо лучше</h1>
+
+
+
+<br>
+
+
+<h1>скачать скачал но слушая оксимирона его треки по 30сек почему-то идут. добавил возможность редачить офлайн треки включая редактор аудио дорожки</h1>
+
+
+<br>
+
+
+<h1>ну в целом я сделал удобный редактор плейлистов и прослушивание музыки, далее будет добовляться моя отсебятена</h1>
+
+<h1>ниже скриншотики скину а ориг описание оставлю</h1>
+
+<div>
+  
+<div align="left"><img width="1679" height="1049" alt="image" src="https://github.com/user-attachments/assets/5269b15a-a382-4d76-9f9f-9b9171d52cb7" /></div>
+<div align="right"><img width="1679" height="1049" alt="image" src="https://github.com/user-attachments/assets/f92f3c36-e8a4-4a7e-af63-23d5d3a26164" />
+</div>
+  
+</div>
+
+
 <p align="center">
   <picture>
     <source alt="Nuclear Music Player"  srcset="packages/docs/.gitbook/assets/readme-banner.png">
