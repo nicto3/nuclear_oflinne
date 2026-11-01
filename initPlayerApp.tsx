@@ -14,6 +14,7 @@ import {
   applyLanguageFromSettings,
   initLanguageWatcher,
 } from './services/languageService';
+import { registerLrclibProvider } from './services/lyrics/lrclibProvider';
 import { loadMarketplaceThemes } from './services/marketplaceThemeDirService';
 import { initMcpHandler } from './services/mcp';
 import { initMiniPlayerBridge } from './services/miniPlayer/miniPlayerBridge';
@@ -70,6 +71,7 @@ export const initPlayerApp = async (
     .then(() => initRemoteControl())
     .then(() => initDiscordHandler())
     .then(() => initMiniPlayerBridge())
+    .then(() => registerLrclibProvider())
     .then(() => initPlaybackEventBridge())
     .then(() => initHistoryService())
     .then(() => initLanguage())

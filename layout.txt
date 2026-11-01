@@ -11,6 +11,7 @@ MiniPlayer.tsx packages/player/src/miniPlayer/MiniPlayer.tsx
 initMiniPlayer.tsx packages/player/src/miniPlayer/initMiniPlayer.tsx
 miniPlayerTypes.ts packages/player/src/miniPlayer/miniPlayerTypes.ts
 miniPlayerBridge.ts packages/player/src/services/miniPlayer/miniPlayerBridge.ts
+lrclibProvider.ts packages/player/src/services/lyrics/lrclibProvider.ts
 offlineCandidates.ts packages/player/src/services/offline/offlineCandidates.ts
 offlineDownloads.ts packages/player/src/services/offline/offlineDownloads.ts
 offlineUrl.ts packages/player/src/services/offline/offlineUrl.ts
@@ -25,6 +26,7 @@ useDominantColor.ts packages/player/src/hooks/useDominantColor.ts
 Offline.tsx packages/player/src/views/Offline/Offline.tsx
 ConnectedTrackContextMenu.tsx packages/player/src/components/ConnectedTrackContextMenu.tsx
 FullscreenPlayer.tsx packages/player/src/components/FullscreenPlayer.tsx
+FullscreenLyrics.tsx packages/player/src/components/FullscreenLyrics.tsx
 ConnectedNowPlaying.tsx packages/player/src/components/ConnectedPlayerBar/ConnectedNowPlaying.tsx
 PlayerBarNowPlaying.tsx packages/ui/src/components/PlayerBar/PlayerBarNowPlaying.tsx
 PlaylistDetailActions.tsx packages/player/src/views/PlaylistDetail/components/PlaylistDetailActions.tsx

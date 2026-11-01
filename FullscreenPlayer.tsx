@@ -1,5 +1,8 @@
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   HeartIcon,
+  MicVocalIcon,
+  MinusIcon,
   PauseIcon,
   PlayIcon,
   Repeat1Icon,
@@ -7,6 +10,7 @@ import {
   ShuffleIcon,
   SkipBackIcon,
   SkipForwardIcon,
+  SquareIcon,
   Volume2Icon,
   VolumeXIcon,
   XIcon,
@@ -30,8 +34,14 @@ import { useFavoritesStore } from '../stores/favoritesStore';
 import { useFullscreenPlayerStore } from '../stores/fullscreenPlayerStore';
 import { useQueueStore } from '../stores/queueStore';
 import { useSoundStore } from '../stores/soundStore';
+import { FullscreenLyrics } from './FullscreenLyrics';
 
-const TITLE_BAR_HEIGHT = 26;
+const WINDOW_CONTROL_STYLES = `
+  .fs-win-btn { transition: background 0.12s; }
+  .fs-win-btn:hover { background: rgba(255,255,255,0.18) !important; }
+  .fs-win-close:hover { background: #e81123 !important; }
+`;
+
 const MUTED = 'rgba(255,255,255,0.7)';
 const FALLBACK_BASE = 'hsl(220, 10%, 24%)';
 const FALLBACK_DEEP = 'hsl(220, 10%, 8%)';
@@ -153,9 +163,63 @@ const Slider: FC<SliderProps> = ({
   );
 };
 
+const windowButton: CSSProperties = {
+  width: 46,
+  height: 30,
+  background: 'transparent',
+  border: 'none',
+  color: '#fff',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const WindowControls: FC = () => (
+  <>
+    <style>{WINDOW_CONTROL_STYLES}</style>
+    <div
+      data-tauri-drag-region
+      style={{ position: 'absolute', top: 0, left: 0, right: 140, height: 30 }}
+    />
+    <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex' }}>
+      <button
+        type="button"
+        className="fs-win-btn"
+        aria-label="Minimize window"
+        onClick={() => void getCurrentWindow().minimize()}
+        style={windowButton}
+      >
+        <MinusIcon size={14} />
+      </button>
+      <button
+        type="button"
+        className="fs-win-btn"
+        aria-label="Maximize window"
+        onClick={() => void getCurrentWindow().toggleMaximize()}
+        style={windowButton}
+      >
+        <SquareIcon size={12} />
+      </button>
+      <button
+        type="button"
+        className="fs-win-btn fs-win-close"
+        aria-label="Close window"
+        onClick={() => void getCurrentWindow().close()}
+        style={windowButton}
+      >
+        <XIcon size={15} />
+      </button>
+    </div>
+  </>
+);
+
 const FullscreenContent: FC = () => {
   const { t } = useTranslation('playerBar');
   const close = useFullscreenPlayerStore((state) => state.close);
+  const showLyrics = useFullscreenPlayerStore((state) => state.showLyrics);
+  const toggleLyrics = useFullscreenPlayerStore((state) => state.toggleLyrics);
+  const item = useQueueStore((state) => state.getCurrentItem());
   const track = useQueueStore((state) => state.getCurrentItem()?.track);
   const status = useSoundStore((state) => state.status);
   const seek = useSoundStore((state) => state.seek);
@@ -199,54 +263,30 @@ const FullscreenContent: FC = () => {
     }
   };
 
-  return (
+  const coverSize = showLyrics ? 'min(36vh, 26vw)' : 'min(48vh, 40vw)';
+
+  const mainColumn = (
     <div
-      data-testid="fullscreen-player"
       style={{
-        position: 'fixed',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        top: TITLE_BAR_HEIGHT,
-        zIndex: 200,
+        flex: showLyrics ? '0 0 44%' : '0 1 auto',
+        minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 28,
-        padding: 32,
-        boxSizing: 'border-box',
-        color: '#fff',
-        background: `linear-gradient(160deg, ${color?.base ?? FALLBACK_BASE} 0%, ${color?.deep ?? FALLBACK_DEEP} 100%)`,
-        transition: 'background 0.6s ease',
-        fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif',
+        gap: showLyrics ? 20 : 28,
+        transition: 'flex-basis 0.4s ease',
       }}
     >
-      <button
-        type="button"
-        aria-label="Close"
-        title="Esc"
-        onClick={close}
-        data-testid="fullscreen-close"
-        style={{
-          ...iconButton,
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          background: 'rgba(0,0,0,0.25)',
-        }}
-      >
-        <XIcon size={22} />
-      </button>
-
       <div
         style={{
-          width: 'min(48vh, 40vw)',
+          width: coverSize,
           aspectRatio: '1',
           borderRadius: 16,
           overflow: 'hidden',
           background: 'rgba(0,0,0,0.3)',
           boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          transition: 'width 0.4s ease',
         }}
       >
         {coverUrl && (
@@ -260,7 +300,7 @@ const FullscreenContent: FC = () => {
 
       <div
         style={{
-          width: 'min(720px, 90%)',
+          width: 'min(720px, 100%)',
           display: 'flex',
           flexDirection: 'column',
           gap: 18,
@@ -269,7 +309,7 @@ const FullscreenContent: FC = () => {
         <div style={{ textAlign: 'center' }}>
           <div
             style={{
-              fontSize: 'clamp(22px, 3.4vw, 40px)',
+              fontSize: 'clamp(20px, 3vw, 38px)',
               fontWeight: 800,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -280,7 +320,7 @@ const FullscreenContent: FC = () => {
           </div>
           <div
             style={{
-              fontSize: 'clamp(14px, 1.8vw, 22px)',
+              fontSize: 'clamp(14px, 1.7vw, 22px)',
               color: MUTED,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -386,11 +426,24 @@ const FullscreenContent: FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: 12,
-            maxWidth: 420,
+            maxWidth: 460,
             width: '100%',
             alignSelf: 'center',
           }}
         >
+          <button
+            type="button"
+            aria-label={showLyrics ? 'Hide lyrics' : 'Show lyrics'}
+            title={showLyrics ? 'Hide lyrics' : 'Show lyrics'}
+            onClick={toggleLyrics}
+            data-testid="fullscreen-lyrics-toggle"
+            style={{
+              ...iconButton,
+              color: showLyrics ? '#4ade80' : MUTED,
+            }}
+          >
+            <MicVocalIcon size={22} />
+          </button>
           <button
             type="button"
             aria-label="Favorite"
@@ -419,6 +472,65 @@ const FullscreenContent: FC = () => {
           />
         </div>
       </div>
+    </div>
+  );
+
+  return (
+    <div
+      data-testid="fullscreen-player"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 200,
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 56,
+        padding: '44px 48px 32px',
+        boxSizing: 'border-box',
+        color: '#fff',
+        background: `linear-gradient(160deg, ${color?.base ?? FALLBACK_BASE} 0%, ${color?.deep ?? FALLBACK_DEEP} 100%)`,
+        transition: 'background 0.6s ease',
+        fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif',
+      }}
+    >
+      <WindowControls />
+      <button
+        type="button"
+        aria-label="Close"
+        title="Esc"
+        onClick={close}
+        data-testid="fullscreen-close"
+        style={{
+          ...iconButton,
+          position: 'absolute',
+          top: 40,
+          right: 14,
+          background: 'rgba(0,0,0,0.25)',
+        }}
+      >
+        <XIcon size={22} />
+      </button>
+
+      {mainColumn}
+
+      {showLyrics && (
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            maxWidth: 760,
+            height: '100%',
+          }}
+        >
+          <FullscreenLyrics
+            item={item}
+            seekSeconds={seek}
+            onSeek={(seconds) => useSoundStore.getState().seekTo(seconds)}
+          />
+        </div>
+      )}
     </div>
   );
 };

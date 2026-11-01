@@ -769,5 +769,15 @@
       "plugin": "Estensione",
       "docs": "Documentazione"
     }
+  },
+  "fullscreenPlayer": {
+    "lyrics": {
+      "title": "Lyrics",
+      "loading": "Loading lyrics…",
+      "none": "No lyrics found for this track.",
+      "instrumental": "Instrumental",
+      "earlier": "Show lyrics earlier",
+      "later": "Show lyrics later"
+    }
   }
 }
