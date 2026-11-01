@@ -4,6 +4,7 @@ import {
   MicVocalIcon,
   MinusIcon,
   PauseIcon,
+  PencilIcon,
   PlayIcon,
   Repeat1Icon,
   RepeatIcon,
@@ -219,7 +220,15 @@ const FullscreenContent: FC = () => {
   const close = useFullscreenPlayerStore((state) => state.close);
   const showLyrics = useFullscreenPlayerStore((state) => state.showLyrics);
   const toggleLyrics = useFullscreenPlayerStore((state) => state.toggleLyrics);
-  const item = useQueueStore((state) => state.getCurrentItem());
+  const sourcePanelOpen = useFullscreenPlayerStore(
+    (state) => state.sourcePanelOpen,
+  );
+  const toggleSourcePanel = useFullscreenPlayerStore(
+    (state) => state.toggleSourcePanel,
+  );
+  const closeSourcePanel = useFullscreenPlayerStore(
+    (state) => state.closeSourcePanel,
+  );
   const track = useQueueStore((state) => state.getCurrentItem()?.track);
   const status = useSoundStore((state) => state.status);
   const seek = useSoundStore((state) => state.seek);
@@ -513,6 +522,27 @@ const FullscreenContent: FC = () => {
         <XIcon size={22} />
       </button>
 
+      {showLyrics && (
+        <button
+          type="button"
+          aria-label="Lyrics source"
+          title="Lyrics source"
+          onClick={toggleSourcePanel}
+          data-testid="fullscreen-lyrics-source"
+          style={{
+            ...iconButton,
+            position: 'absolute',
+            top: 40,
+            right: 66,
+            background: sourcePanelOpen
+              ? 'rgba(255,255,255,0.3)'
+              : 'rgba(0,0,0,0.25)',
+          }}
+        >
+          <PencilIcon size={20} />
+        </button>
+      )}
+
       {mainColumn}
 
       {showLyrics && (
@@ -525,9 +555,11 @@ const FullscreenContent: FC = () => {
           }}
         >
           <FullscreenLyrics
-            item={item}
+            track={track}
             seekSeconds={seek}
             onSeek={(seconds) => useSoundStore.getState().seekTo(seconds)}
+            sourcePanelOpen={sourcePanelOpen}
+            onCloseSourcePanel={closeSourcePanel}
           />
         </div>
       )}

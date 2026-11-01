@@ -14,7 +14,7 @@ import {
   applyLanguageFromSettings,
   initLanguageWatcher,
 } from './services/languageService';
-import { registerLrclibProvider } from './services/lyrics/lrclibProvider';
+import { registerLyricsProvider } from './services/lyrics/lyricsService';
 import { loadMarketplaceThemes } from './services/marketplaceThemeDirService';
 import { initMcpHandler } from './services/mcp';
 import { initMiniPlayerBridge } from './services/miniPlayer/miniPlayerBridge';
@@ -22,6 +22,7 @@ import { initMpdHandler } from './services/mpd';
 import { initPlaybackEventBridge } from './services/playbackEventBridge';
 import { hydratePluginsFromRegistry } from './services/plugins/pluginBootstrap';
 import { initializeFavoritesStore } from './stores/favoritesStore';
+import { initializeLyricsStore } from './stores/lyricsStore';
 import { initializeOfflineStore } from './stores/offlineStore';
 import { initializePlaylistStore } from './stores/playlistStore';
 import { initializeQueueStore } from './stores/queueStore';
@@ -38,6 +39,7 @@ const initializeStores = () =>
     .then(() => initializeFavoritesStore())
     .then(() => initializeStreamVerificationStore())
     .then(() => initializeOfflineStore())
+    .then(() => initializeLyricsStore())
     .then(() => initializePlaylistStore());
 
 const initRemoteControl = () =>
@@ -71,7 +73,7 @@ export const initPlayerApp = async (
     .then(() => initRemoteControl())
     .then(() => initDiscordHandler())
     .then(() => initMiniPlayerBridge())
-    .then(() => registerLrclibProvider())
+    .then(() => registerLyricsProvider())
     .then(() => initPlaybackEventBridge())
     .then(() => initHistoryService())
     .then(() => initLanguage())

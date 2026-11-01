@@ -1,87 +1,103 @@
-import type {
-  LineSyncedLyrics,
-  Lyrics,
-  PlainLyrics,
-  Track,
-} from '@nuclearplayer/model';
-import type { LyricsProvider } from '@nuclearplayer/plugin-sdk';
+import type { Track } from '@nuclearplayer/model';
 
 import { httpHost } from '../httpHost';
-import { providersHost } from '../providersHost';
-
-export const LRCLIB_PROVIDER_ID = 'lrclib';
+import {
+  isLoadable,
+  MIN_TITLE_LENGTH,
+  normalize,
+  type LyricsCandidate,
+  type LyricsSource,
+  type Query,
+} from './lyricsTypes';
 
 const LRCLIB_URL = 'https://lrclib.net/api';
 const CLIENT_HEADERS = {
   'User-Agent':
     'Nuclear-offline-fork (https://github.com/nicto3/nuclear_oflinne)',
 };
-const SPEED_VARIANT_REGEX = /sped\s*up|speed\s*up|speedup|nightcore|slowed/i;
 const NOISE_REGEX =
   /\b(sped\s*up|speed\s*up|speedup|slowed(\s*(\+|and|&)?\s*reverb)?|reverb(ed)?|nightcore|bass\s*boosted?|8d\s*audio|official(\s+(audio|video|music\s*video|lyric\s*video))?|lyrics?|original\s*track|hd|hq)\b/gi;
-const MAX_SEARCH_CANDIDATES = 3;
-const MIN_SPEED_SCALE = 0.5;
-const MAX_SPEED_SCALE = 2;
-const SCALE_TOLERANCE = 0.03;
-const LAST_LINE_MS = 5000;
+const FEAT_REGEX = /\s*[([]?\b(feat|ft|featuring)\b\.?\s.*$/i;
+const MAX_ATTEMPTS = 3;
+const MAX_RETRY_DELAY_MS = 5000;
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 
 type LrclibRecord = {
   id: number;
   trackName: string;
   artistName: string;
-  albumName?: string | null;
   duration: number;
   instrumental: boolean;
   plainLyrics: string | null;
   syncedLyrics: string | null;
 };
 
-type Query = { artist: string; title: string };
-
-type TimedLine = { startMs: number; text: string };
-
-const normalize = (value: string): string =>
-  value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 export const cleanTitle = (raw: string): string =>
   raw
     .replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')
+    .replace(/@\S*/g, ' ')
     .replace(NOISE_REGEX, ' ')
-    .replace(/@\w+/g, ' ')
     .replace(/[+|]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
+const stripFeat = (value: string): string =>
+  value.replace(FEAT_REGEX, '').trim();
+
+const collapseDashes = (artist: string): string =>
+  artist.replace(/\s+-\s+/g, '-');
+
 export const buildQueries = (track: Track): Query[] => {
-  const artist = track.artists[0]?.name ?? '';
+  const uploader = track.artists[0]?.name ?? '';
   const queries: Query[] = [];
-  const push = (query: Query) => {
-    const title = query.title.trim();
-    if (!title) {
+  const push = (artist: string, title: string) => {
+    const value = title.trim();
+    if (normalize(value).length < MIN_TITLE_LENGTH) {
       return;
     }
-    const key = `${normalize(query.artist)}|${normalize(title)}`;
-    if (
-      !queries.some(
-        (existing) =>
-          `${normalize(existing.artist)}|${normalize(existing.title)}` === key,
-      )
-    ) {
-      queries.push({ artist: query.artist.trim(), title });
+    const key = `${normalize(artist)}|${normalize(value)}`;
+    const exists = queries.some(
+      (query) => `${normalize(query.artist)}|${normalize(query.title)}` === key,
+    );
+    if (!exists) {
+      queries.push({ artist: artist.trim(), title: value });
     }
   };
 
-  const separatorIndex = track.title.indexOf(' - ');
-  if (separatorIndex > 0) {
-    push({
-      artist: cleanTitle(track.title.slice(0, separatorIndex)),
-      title: cleanTitle(track.title.slice(separatorIndex + 3)),
-    });
-    push({ artist, title: cleanTitle(track.title.slice(separatorIndex + 3)) });
+  const parts = track.title.split(' - ');
+  for (let index = parts.length - 1; index >= 1; index--) {
+    const artistPart = stripFeat(cleanTitle(parts.slice(0, index).join(' - ')));
+    const titlePart = stripFeat(cleanTitle(parts.slice(index).join(' - ')));
+    push(collapseDashes(artistPart), titlePart);
+    push(uploader, titlePart);
   }
-  push({ artist, title: cleanTitle(track.title) });
+  push(uploader, stripFeat(cleanTitle(track.title)));
   return queries;
 };
+
+export const collectArtistHints = (
+  track: Track,
+  queries: Query[],
+): string[] => {
+  const hints = new Set<string>();
+  const add = (value: string) => {
+    const normalized = normalize(value);
+    if (normalized.length >= 2) {
+      hints.add(normalized);
+    }
+  };
+  track.artists.forEach((artist) => add(artist.name));
+  queries.forEach((query) => {
+    add(query.artist);
+    add(collapseDashes(query.artist));
+  });
+  return Array.from(hints);
+};
+
+export type TimedLine = { startMs: number; text: string };
 
 const TIME_TAG = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
 const LRC_LINE = /^((?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\])+)\s*(.*)$/;
@@ -118,162 +134,92 @@ export const parseLrc = (text: string): TimedLine[] => {
   return lines.sort((first, second) => first.startMs - second.startMs);
 };
 
-const buildSynced = (
-  lines: TimedLine[],
-  scale: number,
-  durationMs?: number,
-): LineSyncedLyrics => ({
-  type: 'lineSynced',
-  metadata: {},
-  sections: [
-    {
-      lines: lines.map((line, index) => {
-        const startMs = Math.round(line.startMs * scale);
-        const next = lines[index + 1];
-        const endMs = next
-          ? Math.round(next.startMs * scale)
-          : Math.max(startMs + LAST_LINE_MS, durationMs ?? 0);
-        return { segments: [{ text: line.text }], startMs, endMs };
-      }),
-    },
-  ],
-});
-
-const buildPlain = (text: string): PlainLyrics => ({
-  type: 'plain',
-  metadata: {},
-  sections: [
-    {
-      lines: text
-        .split(/\r?\n/)
-        .map((line) => ({ segments: [{ text: line.trimEnd() }] })),
-    },
-  ],
-});
+const retryDelayMs = (
+  headers: Record<string, string> | undefined,
+  attempt: number,
+): number => {
+  const seconds = parseFloat(headers?.['retry-after'] ?? '');
+  const base = Number.isFinite(seconds) ? seconds * 1000 : attempt * 1000;
+  return Math.min(MAX_RETRY_DELAY_MS, Math.max(500, base));
+};
 
 const request = async <T>(
   path: string,
   params: Record<string, string>,
 ): Promise<T | undefined> => {
-  const response = await httpHost.fetch(
-    `${LRCLIB_URL}/${path}?${new URLSearchParams(params).toString()}`,
-    { headers: CLIENT_HEADERS },
-  );
-  if (response.status === 404) {
-    return undefined;
-  }
-  if (response.status >= 400) {
-    throw new Error(`LRCLIB responded with ${response.status}`);
-  }
-  return JSON.parse(response.body) as T;
-};
+  const url = `${LRCLIB_URL}/${path}?${new URLSearchParams(params).toString()}`;
 
-const hasContent = (record: LrclibRecord): boolean =>
-  Boolean(record.syncedLyrics || record.plainLyrics || record.instrumental);
-
-const titleMatches = (record: LrclibRecord, title: string): boolean => {
-  const wanted = normalize(title);
-  const found = normalize(record.trackName);
-  if (wanted.length < 2 || found.length < 2) {
-    return false;
-  }
-  return found.includes(wanted) || wanted.includes(found);
-};
-
-const pickBest = (
-  records: LrclibRecord[],
-  query: Query,
-  durationSeconds: number | undefined,
-): LrclibRecord | undefined => {
-  const candidates = records
-    .filter(hasContent)
-    .filter((record) => titleMatches(record, query.title));
-  if (candidates.length === 0) {
-    return undefined;
-  }
-  const distance = (record: LrclibRecord) =>
-    durationSeconds ? Math.abs(record.duration - durationSeconds) : 0;
-  return [...candidates].sort((first, second) => {
-    const syncedRank =
-      Number(Boolean(second.syncedLyrics)) -
-      Number(Boolean(first.syncedLyrics));
-    return syncedRank !== 0 ? syncedRank : distance(first) - distance(second);
-  })[0];
-};
-
-const findRecord = async (track: Track): Promise<LrclibRecord | undefined> => {
-  const durationSeconds = track.durationMs
-    ? Math.round(track.durationMs / 1000)
-    : undefined;
-
-  for (const query of buildQueries(track)) {
-    if (durationSeconds && query.artist) {
-      const exact = await request<LrclibRecord>('get', {
-        track_name: query.title,
-        artist_name: query.artist,
-        duration: String(durationSeconds),
-      });
-      if (exact && hasContent(exact)) {
-        return exact;
-      }
+  for (let attempt = 1; ; attempt++) {
+    const response = await httpHost.fetch(url, { headers: CLIENT_HEADERS });
+    if (response.status === 404) {
+      return undefined;
     }
-
-    const searches: Record<string, string>[] = [];
-    if (query.artist) {
-      searches.push({ track_name: query.title, artist_name: query.artist });
+    if (response.status < 400) {
+      return JSON.parse(response.body) as T;
     }
-    searches.push({ q: `${query.artist} ${query.title}`.trim() });
-
-    for (const params of searches.slice(0, MAX_SEARCH_CANDIDATES)) {
-      const results = (await request<LrclibRecord[]>('search', params)) ?? [];
-      const best = pickBest(results, query, durationSeconds);
-      if (best) {
-        return best;
-      }
+    if (!RETRYABLE_STATUSES.has(response.status) || attempt >= MAX_ATTEMPTS) {
+      throw new Error(`LRCLIB responded with ${response.status}`);
     }
+    await sleep(retryDelayMs(response.headers, attempt));
   }
-  return undefined;
 };
 
-const toLyrics = (record: LrclibRecord, track: Track): Lyrics | undefined => {
-  if (record.instrumental) {
-    return { type: 'instrumental', metadata: {} };
-  }
+const toCandidate = (record: LrclibRecord): LyricsCandidate => ({
+  id: `lrclib:${record.id}`,
+  source: 'lrclib',
+  sourceName: 'LRCLIB',
+  artist: record.artistName,
+  title: record.trackName,
+  durationSec: record.duration,
+  synced: record.syncedLyrics ?? undefined,
+  plain: record.plainLyrics ?? undefined,
+  instrumental: record.instrumental || undefined,
+});
 
-  if (record.syncedLyrics) {
-    const lines = parseLrc(record.syncedLyrics);
-    if (lines.length > 0) {
-      const trackSeconds = track.durationMs ? track.durationMs / 1000 : 0;
-      const ratio =
-        trackSeconds > 0 && record.duration > 0
-          ? trackSeconds / record.duration
-          : 1;
-      const isSpeedVariant = SPEED_VARIANT_REGEX.test(track.title);
-      const shouldScale =
-        isSpeedVariant &&
-        Math.abs(ratio - 1) > SCALE_TOLERANCE &&
-        ratio > MIN_SPEED_SCALE &&
-        ratio < MAX_SPEED_SCALE;
-      return buildSynced(lines, shouldScale ? ratio : 1, track.durationMs);
-    }
-  }
-
-  if (record.plainLyrics) {
-    return buildPlain(record.plainLyrics);
-  }
-  return undefined;
-};
-
-const lrclibProvider: LyricsProvider = {
-  id: LRCLIB_PROVIDER_ID,
-  kind: 'lyrics',
+export const lrclibSource: LyricsSource = {
+  id: 'lrclib',
   name: 'LRCLIB',
-  getLyrics: async (track) => {
-    const record = await findRecord(track);
-    return record ? toLyrics(record, track) : undefined;
-  },
-};
 
-export const registerLrclibProvider = (): void => {
-  providersHost.register(lrclibProvider);
+  search: async ({ query, artist, title, durationSec }) => {
+    const found = new Map<string, LyricsCandidate>();
+    const add = (records: LrclibRecord[] | undefined) =>
+      (records ?? []).forEach((record) => {
+        const candidate = toCandidate(record);
+        if (isLoadable(candidate)) {
+          found.set(candidate.id, candidate);
+        }
+      });
+
+    if (artist && title && durationSec) {
+      const exact = await request<LrclibRecord>('get', {
+        track_name: title,
+        artist_name: artist,
+        duration: String(durationSec),
+      });
+      if (exact) {
+        add([exact]);
+        if (found.size > 0) {
+          return Array.from(found.values());
+        }
+      }
+    }
+
+    if (artist && title) {
+      add(
+        await request<LrclibRecord[]>('search', {
+          track_name: title,
+          artist_name: artist,
+        }),
+      );
+    }
+    if (found.size === 0) {
+      add(await request<LrclibRecord[]>('search', { q: query }));
+    }
+    if (found.size === 0 && title) {
+      add(await request<LrclibRecord[]>('search', { track_name: title }));
+    }
+    return Array.from(found.values());
+  },
+
+  load: async (candidate) => candidate,
 };
