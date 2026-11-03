@@ -14,7 +14,10 @@ import {
   applyLanguageFromSettings,
   initLanguageWatcher,
 } from './services/languageService';
-import { registerLyricsProvider } from './services/lyrics/lyricsService';
+import {
+  initLyricsPrefetch,
+  registerLyricsProvider,
+} from './services/lyrics/lyricsService';
 import { loadMarketplaceThemes } from './services/marketplaceThemeDirService';
 import { initMcpHandler } from './services/mcp';
 import { initMiniPlayerBridge } from './services/miniPlayer/miniPlayerBridge';
@@ -74,6 +77,7 @@ export const initPlayerApp = async (
     .then(() => initDiscordHandler())
     .then(() => initMiniPlayerBridge())
     .then(() => registerLyricsProvider())
+    .then(() => initLyricsPrefetch())
     .then(() => initPlaybackEventBridge())
     .then(() => initHistoryService())
     .then(() => initLanguage())

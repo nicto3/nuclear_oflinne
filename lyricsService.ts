@@ -3,6 +3,7 @@ import type { LyricsProvider } from '@nuclearplayer/plugin-sdk';
 
 import { useLyricsStore } from '../../stores/lyricsStore';
 import { getTrackKey } from '../../stores/offlineStore';
+import { useQueueStore } from '../../stores/queueStore';
 import { Logger } from '../logger';
 import { providersHost } from '../providersHost';
 import { geniusSource } from './geniusSource';
@@ -19,8 +20,10 @@ import {
   pickBest,
   rankCandidates,
   titleMatches,
+  withTimeout,
   type LyricsCandidate,
   type LyricsSource,
+  type Query,
   type SavedLyrics,
 } from './lyricsTypes';
 import { neteaseSource } from './neteaseSource';
@@ -28,6 +31,16 @@ import { neteaseSource } from './neteaseSource';
 const SOURCES: LyricsSource[] = [lrclibSource, neteaseSource, geniusSource];
 const AUTO_PROVIDER_ID = 'auto-lyrics';
 const MAX_STRICT_QUERIES = 3;
+const SOURCE_TIMEOUT_MS: Record<LyricsCandidate['source'], number> = {
+  lrclib: 14000,
+  netease: 8000,
+  genius: 10000,
+};
+const PREFETCH_GAP_MS = 400;
+const PREFETCH_AHEAD = 2;
+const GENIUS_LINK =
+  /^https?:\/\/(?:www\.)?genius\.com\/([^?#\s/]+-lyrics)\/?(?:[?#].*)?$/i;
+const LRCLIB_LINK = /^https?:\/\/(?:www\.)?lrclib\.net\/tracks\/(\d+)/i;
 const MAX_SUGGESTIONS = 8;
 const MAX_PER_SOURCE = 6;
 const LAST_LINE_MS = 5000;
@@ -155,38 +168,95 @@ export const savedToLyrics = (
   };
 };
 
+const searchOneSource = async (
+  source: LyricsSource,
+  queries: Query[],
+  hints: string[],
+  durationSec: number | undefined,
+): Promise<LyricsCandidate | undefined> => {
+  for (const [index, query] of queries.entries()) {
+    const candidates = await source.search({
+      query: `${query.artist} ${query.title}`.trim(),
+      artist: query.artist || undefined,
+      title: query.title,
+      durationSec: index === 0 ? durationSec : undefined,
+    });
+    const best = pickBest(candidates, query, hints, durationSec);
+    if (best) {
+      return source.load(best);
+    }
+  }
+  return undefined;
+};
+
+type SourceOutcome = {
+  source: LyricsSource;
+  candidate?: LyricsCandidate;
+  error?: unknown;
+};
+
+const firstWithCandidate = (
+  runs: Promise<SourceOutcome>[],
+): Promise<{ found?: SourceOutcome; all: SourceOutcome[] }> =>
+  new Promise((resolve) => {
+    const all: SourceOutcome[] = [];
+    let pending = runs.length;
+    if (pending === 0) {
+      resolve({ all });
+      return;
+    }
+    runs.forEach((run) => {
+      void run.then((outcome) => {
+        all.push(outcome);
+        if (outcome.candidate) {
+          resolve({ found: outcome, all });
+        }
+        pending -= 1;
+        if (pending === 0) {
+          resolve({ all });
+        }
+      });
+    });
+  });
+
 const strictFind = async (
   track: Track,
 ): Promise<LyricsCandidate | undefined> => {
   const queries = buildQueries(track).slice(0, MAX_STRICT_QUERIES);
   const hints = collectArtistHints(track, queries);
   const durationSec = durationOf(track);
-  const errors: unknown[] = [];
-  let succeeded = 0;
 
-  for (const source of SOURCES) {
-    try {
-      for (const [index, query] of queries.entries()) {
-        const candidates = await source.search({
-          query: `${query.artist} ${query.title}`.trim(),
-          artist: query.artist || undefined,
-          title: query.title,
-          durationSec: index === 0 ? durationSec : undefined,
-        });
-        const best = pickBest(candidates, query, hints, durationSec);
-        if (best) {
-          return await source.load(best);
-        }
-      }
-      succeeded += 1;
-    } catch (error) {
-      errors.push(error);
-      await Logger.lyrics.warn(`${source.name} failed: ${errorText(error)}`);
-    }
+  const runs: Promise<SourceOutcome>[] = SOURCES.map((source) =>
+    withTimeout(
+      searchOneSource(source, queries, hints, durationSec),
+      SOURCE_TIMEOUT_MS[source.id],
+      source.name,
+    ).then(
+      (candidate): SourceOutcome => ({ source, candidate }),
+      (error): SourceOutcome => ({ source, error }),
+    ),
+  );
+
+  const primary = await runs[0];
+  if (primary.candidate) {
+    return primary.candidate;
   }
 
-  if (succeeded === 0 && errors.length > 0) {
-    throw errors[0];
+  const { found, all } = await firstWithCandidate(runs.slice(1));
+  if (found?.candidate) {
+    return found.candidate;
+  }
+
+  const outcomes = [primary, ...all];
+  for (const outcome of outcomes) {
+    if (outcome.error) {
+      await Logger.lyrics.warn(
+        `${outcome.source.name} failed: ${errorText(outcome.error)}`,
+      );
+    }
+  }
+  if (outcomes.every((outcome) => outcome.error)) {
+    throw outcomes[0].error;
   }
   return undefined;
 };
@@ -216,7 +286,13 @@ const findSuggestions = async (track: Track): Promise<LyricsCandidate[]> => {
 
   const settled = await Promise.allSettled(
     SOURCES.flatMap((source) =>
-      titles.map((title) => source.search({ query: title, title })),
+      titles.map((title) =>
+        withTimeout(
+          source.search({ query: title, title }),
+          SOURCE_TIMEOUT_MS[source.id],
+          source.name,
+        ),
+      ),
     ),
   );
   const candidates = settled.flatMap((result) =>
@@ -236,13 +312,51 @@ const findSuggestions = async (track: Track): Promise<LyricsCandidate[]> => {
   );
 };
 
+const candidateFromLink = async (
+  query: string,
+): Promise<LyricsCandidate | undefined> => {
+  const genius = query.match(GENIUS_LINK);
+  if (genius) {
+    const slug = genius[1].replace(/-lyrics$/i, '');
+    return {
+      id: `genius:${slug}`,
+      source: 'genius',
+      sourceName: 'Genius',
+      artist: '',
+      title: decodeURIComponent(slug).replace(/-/g, ' '),
+      ref: query,
+    };
+  }
+  const lrclib = query.match(LRCLIB_LINK);
+  if (lrclib && lrclibSource.byId) {
+    return lrclibSource.byId(lrclib[1]);
+  }
+  return undefined;
+};
+
 export const searchLyrics = async (query: string): Promise<SearchOutcome> => {
   const trimmed = query.trim();
   if (!trimmed) {
     return { candidates: [], errors: [] };
   }
+
+  try {
+    const fromLink = await candidateFromLink(trimmed);
+    if (fromLink) {
+      return { candidates: [fromLink], errors: [] };
+    }
+  } catch (error) {
+    return { candidates: [], errors: [errorText(error)] };
+  }
+
   const settled = await Promise.allSettled(
-    SOURCES.map((source) => source.search({ query: trimmed })),
+    SOURCES.map((source) =>
+      withTimeout(
+        source.search({ query: trimmed }),
+        SOURCE_TIMEOUT_MS[source.id],
+        source.name,
+      ),
+    ),
   );
 
   const candidates: LyricsCandidate[] = [];
@@ -264,7 +378,12 @@ export const applyCandidate = async (
   candidate: LyricsCandidate,
   manual = true,
 ): Promise<void> => {
-  const loaded = await sourceById(candidate.source).load(candidate);
+  const source = sourceById(candidate.source);
+  const loaded = await withTimeout(
+    source.load(candidate),
+    SOURCE_TIMEOUT_MS[source.id],
+    source.name,
+  );
   const saved = buildSavedLyrics(loaded, track, manual);
   if (!saved) {
     throw new Error('This result has no lyrics');
@@ -318,4 +437,65 @@ const autoProvider: LyricsProvider = {
 
 export const registerLyricsProvider = (): void => {
   providersHost.register(autoProvider);
+};
+
+const queuedForPrefetch = new Set<string>();
+let prefetchChain: Promise<void> = Promise.resolve();
+
+const wait = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+export const prefetchLyrics = (track: Track): Promise<void> => {
+  const key = getTrackKey(track);
+  if (useLyricsStore.getState().saved[key] || queuedForPrefetch.has(key)) {
+    return Promise.resolve();
+  }
+  queuedForPrefetch.add(key);
+
+  const task = prefetchChain.then(async () => {
+    try {
+      await autoFindLyrics(track);
+    } catch (error) {
+      await Logger.lyrics.warn(
+        `Lyrics prefetch failed for '${track.title}': ${errorText(error)}`,
+      );
+    } finally {
+      queuedForPrefetch.delete(key);
+      await wait(PREFETCH_GAP_MS);
+    }
+  });
+  prefetchChain = task;
+  return task;
+};
+
+export const prefetchManyLyrics = async (
+  tracks: Track[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> => {
+  let done = 0;
+  await Promise.all(
+    tracks.map((track) =>
+      prefetchLyrics(track).then(() => {
+        done += 1;
+        onProgress?.(done, tracks.length);
+      }),
+    ),
+  );
+};
+
+export const initLyricsPrefetch = (): void => {
+  let lastItemId: string | undefined;
+  useQueueStore.subscribe((state) => {
+    const current = state.items[state.currentIndex];
+    if (!current || current.id === lastItemId) {
+      return;
+    }
+    lastItemId = current.id;
+    for (let offset = 0; offset <= PREFETCH_AHEAD; offset++) {
+      const item = state.items[state.currentIndex + offset];
+      if (item) {
+        void prefetchLyrics(item.track);
+      }
+    }
+  });
 };

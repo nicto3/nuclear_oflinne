@@ -11,7 +11,11 @@ type LyricsState = {
   loadFromDisk: () => Promise<void>;
   save: (key: string, lyrics: SavedLyrics) => Promise<void>;
   remove: (key: string) => Promise<void>;
+  setOffset: (key: string, offsetMs: number) => void;
 };
+
+const OFFSET_PERSIST_DELAY_MS = 600;
+let offsetTimer: ReturnType<typeof setTimeout> | undefined;
 
 const persist = async (): Promise<void> => {
   await store.set('lyrics.saved', useLyricsStore.getState().saved);
@@ -31,6 +35,16 @@ export const useLyricsStore = create<LyricsState>((set, get) => ({
   save: async (key, lyrics) => {
     set({ saved: { ...get().saved, [key]: lyrics } });
     await persist();
+  },
+
+  setOffset: (key, offsetMs) => {
+    const current = get().saved[key];
+    if (!current) {
+      return;
+    }
+    set({ saved: { ...get().saved, [key]: { ...current, offsetMs } } });
+    clearTimeout(offsetTimer);
+    offsetTimer = setTimeout(() => void persist(), OFFSET_PERSIST_DELAY_MS);
   },
 
   remove: async (key) => {

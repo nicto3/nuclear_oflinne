@@ -27,6 +27,7 @@ export type LyricsSource = {
   name: string;
   search: (params: SourceSearch) => Promise<LyricsCandidate[]>;
   load: (candidate: LyricsCandidate) => Promise<LyricsCandidate>;
+  byId?: (id: string) => Promise<LyricsCandidate | undefined>;
 };
 
 export type SavedLine = { startMs?: number; text: string };
@@ -35,6 +36,7 @@ export type SavedLyrics = {
   sourceLabel: string;
   savedAtIso: string;
   manual: boolean;
+  offsetMs?: number;
   instrumental?: boolean;
   synced: boolean;
   lines: SavedLine[];
@@ -43,6 +45,28 @@ export type SavedLyrics = {
 export type Query = { artist: string; title: string };
 
 export const MIN_TITLE_LENGTH = 3;
+
+export const withTimeout = <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out`)),
+      timeoutMs,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 
 export const BROWSER_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';

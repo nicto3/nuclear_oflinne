@@ -222,4 +222,9 @@ export const lrclibSource: LyricsSource = {
   },
 
   load: async (candidate) => candidate,
+
+  byId: async (id) => {
+    const record = await request<LrclibRecord>(`get/${id}`, {});
+    return record ? toCandidate(record) : undefined;
+  },
 };

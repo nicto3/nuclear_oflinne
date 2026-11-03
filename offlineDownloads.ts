@@ -11,6 +11,7 @@ import {
 } from '../../stores/offlineStore';
 import { errorMessage } from '../../utils/errorMessage';
 import { Logger } from '../logger';
+import { prefetchLyrics } from '../lyrics/lyricsService';
 import { streamingHost } from '../streamingHost';
 import { candidatesForTrack } from '../streamResolution/candidateSource';
 import {
@@ -229,6 +230,8 @@ export const downloadTracks = async ({
         trackKeys.push(entry.key);
         if (wasExisting) {
           skipped += 1;
+        } else {
+          void prefetchLyrics(track);
         }
       } catch (error) {
         failed += 1;

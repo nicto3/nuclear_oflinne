@@ -5,6 +5,7 @@ import { useTranslation } from '@nuclearplayer/i18n';
 import { Button, Dialog, EmptyState } from '@nuclearplayer/ui';
 
 import { ConnectedTrackTable } from '../../../components/ConnectedTrackTable';
+import { prefetchManyLyrics } from '../../../services/lyrics/lyricsService';
 import { deleteLibraryTracks } from '../../../services/offline/offlineDownloads';
 import { formatSize } from '../../../services/offline/offlineSelectors';
 import {
@@ -19,6 +20,10 @@ export const OfflineLibrary: FC = () => {
   const [pendingDelete, setPendingDelete] = useState<OfflineTrackEntry | null>(
     null,
   );
+  const [lyricsProgress, setLyricsProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
 
   const entries = useMemo(
     () =>
@@ -35,6 +40,14 @@ export const OfflineLibrary: FC = () => {
     (total, entry) => total + entry.sizeBytes,
     0,
   );
+
+  const handleFetchLyrics = async () => {
+    setLyricsProgress({ done: 0, total: trackList.length });
+    await prefetchManyLyrics(trackList, (done, total) =>
+      setLyricsProgress({ done, total }),
+    );
+    setLyricsProgress(null);
+  };
 
   const handleConfirmDelete = async () => {
     if (pendingDelete) {
@@ -56,11 +69,24 @@ export const OfflineLibrary: FC = () => {
 
   return (
     <>
-      <div className="pb-2 text-sm opacity-70" data-testid="library-summary">
-        {t('library.summary', {
-          count: entries.length,
-          size: formatSize(totalSize),
-        })}
+      <div className="flex items-center gap-3 pb-2">
+        <span className="text-sm opacity-70" data-testid="library-summary">
+          {t('library.summary', {
+            count: entries.length,
+            size: formatSize(totalSize),
+          })}
+        </span>
+        <Button
+          variant="tertiary"
+          size="xs"
+          disabled={lyricsProgress !== null}
+          onClick={handleFetchLyrics}
+          data-testid="fetch-lyrics-button"
+        >
+          {lyricsProgress
+            ? t('library.fetchingLyrics', lyricsProgress)
+            : t('library.fetchLyrics')}
+        </Button>
       </div>
       <ConnectedTrackTable
         tracks={trackList}

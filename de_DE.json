@@ -120,7 +120,9 @@
       "emptyDescription": "Open the ⋮ menu of any track and choose Download, or download a whole playlist.",
       "summary": "{{count}} tracks · {{size}}",
       "deleteTitle": "Delete from library",
-      "deleteConfirm": "Delete \"{{name}}\" from the offline library? It will also be removed from your OF Playlists."
+      "deleteConfirm": "Delete \"{{name}}\" from the offline library? It will also be removed from your OF Playlists.",
+      "fetchLyrics": "Download lyrics",
+      "fetchingLyrics": "Lyrics: {{done}} of {{total}}"
     },
     "playlists": {
       "new": "New OF Playlist",
@@ -779,7 +781,8 @@
       "earlier": "Show lyrics earlier",
       "later": "Show lyrics later",
       "error": "Could not reach the lyrics service.",
-      "retry": "Try again"
+      "retry": "Try again",
+      "searchPlaceholder": "Artist and title, or a Genius / LRCLIB link"
     }
   }
 }

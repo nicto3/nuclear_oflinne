@@ -25,6 +25,7 @@ import type {
   SavedLine,
   SavedLyrics,
 } from '../services/lyrics/lyricsTypes';
+import { useLyricsStore } from '../stores/lyricsStore';
 import { getTrackKey } from '../stores/offlineStore';
 
 const OFFSET_STEP_MS = 100;
@@ -309,8 +310,14 @@ export const FullscreenLyrics: FC<FullscreenLyricsProps> = ({
     : -1;
 
   useEffect(() => {
-    setOffsetMs(0);
-  }, [trackKey]);
+    setOffsetMs(saved?.offsetMs ?? 0);
+  }, [trackKey, saved?.savedAtIso]);
+
+  const changeOffset = (delta: number) => {
+    const next = offsetMs + delta;
+    setOffsetMs(next);
+    useLyricsStore.getState().setOffset(trackKey, next);
+  };
 
   useEffect(() => {
     if (activeIndex >= 0) {
@@ -451,7 +458,7 @@ export const FullscreenLyrics: FC<FullscreenLyricsProps> = ({
               type="button"
               aria-label={t('lyrics.later')}
               title={t('lyrics.later')}
-              onClick={() => setOffsetMs((current) => current - OFFSET_STEP_MS)}
+              onClick={() => changeOffset(-OFFSET_STEP_MS)}
               style={offsetButton}
             >
               <MinusIcon size={14} />
@@ -463,7 +470,7 @@ export const FullscreenLyrics: FC<FullscreenLyricsProps> = ({
               type="button"
               aria-label={t('lyrics.earlier')}
               title={t('lyrics.earlier')}
-              onClick={() => setOffsetMs((current) => current + OFFSET_STEP_MS)}
+              onClick={() => changeOffset(OFFSET_STEP_MS)}
               style={offsetButton}
             >
               <PlusIcon size={14} />
