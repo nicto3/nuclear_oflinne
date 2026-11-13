@@ -10,6 +10,7 @@ import {
   ShuffleIcon,
   SkipBackIcon,
   SkipForwardIcon,
+  Volume1Icon,
   Volume2Icon,
   VolumeXIcon,
   XIcon,
@@ -423,15 +424,19 @@ export const MiniPlayer: FC = () => {
             type="button"
             className="mp-btn"
             aria-label={state.volume > 0 ? 'Mute' : 'Unmute'}
-            style={{ ...iconButtonStyle, color: MUTED }}
-            onClick={() =>
-              sendCommand({ type: 'volume', value: state.volume > 0 ? 0 : 1 })
-            }
+            title={state.volume > 0 ? 'Mute' : 'Unmute'}
+            style={{
+              ...iconButtonStyle,
+              color: state.volume > 0 ? MUTED : 'rgba(255,255,255,0.4)',
+            }}
+            onClick={() => sendCommand({ type: 'toggleMute' })}
           >
-            {state.volume > 0 ? (
-              <Volume2Icon size={18} />
-            ) : (
+            {state.volume <= 0 ? (
               <VolumeXIcon size={18} />
+            ) : state.volume < 0.5 ? (
+              <Volume1Icon size={18} />
+            ) : (
+              <Volume2Icon size={18} />
             )}
           </button>
           <Bar
@@ -442,6 +447,17 @@ export const MiniPlayer: FC = () => {
               sendCommand({ type: 'volume', value: fraction })
             }
           />
+          <span
+            style={{
+              width: 34,
+              textAlign: 'right',
+              fontSize: 11,
+              color: MUTED,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {state.volume <= 0 ? 'off' : `${Math.round(state.volume * 100)}%`}
+          </span>
         </div>
       </div>
     </div>

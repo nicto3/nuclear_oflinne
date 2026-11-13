@@ -20,6 +20,7 @@ import {
 import { useSoundStore } from '../../stores/soundStore';
 import { Logger } from '../logger';
 import { playbackManager } from '../playback';
+import { setVolume, toggleMute } from '../volume';
 
 const SEEK_PUBLISH_INTERVAL_MS = 400;
 
@@ -83,7 +84,10 @@ const handleCommand = (command: MiniPlayerCommand): void => {
       useSoundStore.getState().seekTo(command.seconds);
       break;
     case 'volume':
-      void setSetting(VOLUME_SETTING, Math.max(0, Math.min(1, command.value)));
+      setVolume(command.value);
+      break;
+    case 'toggleMute':
+      toggleMute();
       break;
     case 'toggleShuffle':
       void setSetting(SHUFFLE_SETTING, getSetting(SHUFFLE_SETTING) !== true);

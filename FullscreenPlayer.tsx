@@ -12,6 +12,7 @@ import {
   SkipBackIcon,
   SkipForwardIcon,
   SquareIcon,
+  Volume1Icon,
   Volume2Icon,
   VolumeXIcon,
   XIcon,
@@ -30,6 +31,7 @@ import type { RepeatMode } from '@nuclearplayer/plugin-sdk';
 
 import { useCoreSetting } from '../hooks/useCoreSetting';
 import { useDominantColor } from '../hooks/useDominantColor';
+import { useVolumeControl } from '../hooks/useVolumeControl';
 import { playbackManager } from '../services/playback';
 import { useFavoritesStore } from '../stores/favoritesStore';
 import { useFullscreenPlayerStore } from '../stores/fullscreenPlayerStore';
@@ -235,14 +237,20 @@ const FullscreenContent: FC = () => {
   const duration = useSoundStore((state) => state.duration);
   const [shuffle, setShuffle] = useCoreSetting<boolean>('playback.shuffle');
   const [repeat, setRepeat] = useCoreSetting<RepeatMode>('playback.repeat');
-  const [volume, setVolume] = useCoreSetting<number>('playback.volume');
+  const { volume, percent, isMuted, setVolume, toggleMute } =
+    useVolumeControl();
   const { isTrackFavorite, addTrack, removeTrack } = useFavoritesStore();
 
   const coverUrl = pickArtwork(track?.artwork, 'cover', 640)?.url;
   const color = useDominantColor(coverUrl);
   const isPlaying = status === 'playing';
   const isFavorite = track ? isTrackFavorite(track.source) : false;
-  const currentVolume = volume ?? 1;
+  const currentVolume = volume;
+  const VolumeLevelIcon = isMuted
+    ? VolumeXIcon
+    : currentVolume < 0.5
+      ? Volume1Icon
+      : Volume2Icon;
   const repeatMode = repeat ?? 'off';
   const RepeatModeIcon = repeatMode === 'one' ? Repeat1Icon : RepeatIcon;
 
@@ -463,15 +471,16 @@ const FullscreenContent: FC = () => {
           </button>
           <button
             type="button"
-            aria-label={currentVolume > 0 ? 'Mute' : 'Unmute'}
-            onClick={() => setVolume(currentVolume > 0 ? 0 : 1)}
-            style={{ ...iconButton, color: MUTED }}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+            title={isMuted ? 'Unmute' : 'Mute'}
+            onClick={toggleMute}
+            data-testid="fullscreen-mute"
+            style={{
+              ...iconButton,
+              color: isMuted ? 'rgba(255,255,255,0.45)' : MUTED,
+            }}
           >
-            {currentVolume > 0 ? (
-              <Volume2Icon size={22} />
-            ) : (
-              <VolumeXIcon size={22} />
-            )}
+            <VolumeLevelIcon size={22} />
           </button>
           <Slider
             label="Volume"
@@ -479,6 +488,18 @@ const FullscreenContent: FC = () => {
             commitWhileDragging
             onCommit={setVolume}
           />
+          <span
+            data-testid="fullscreen-volume-value"
+            style={{
+              width: 44,
+              textAlign: 'right',
+              fontSize: 13,
+              color: MUTED,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {isMuted ? 'off' : `${percent}%`}
+          </span>
         </div>
       </div>
     </div>

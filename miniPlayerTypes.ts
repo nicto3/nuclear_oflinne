@@ -24,6 +24,7 @@ export type MiniPlayerCommand =
   | { type: 'previous' }
   | { type: 'seek'; seconds: number }
   | { type: 'volume'; value: number }
+  | { type: 'toggleMute' }
   | { type: 'toggleShuffle' }
   | { type: 'cycleRepeat' }
   | { type: 'toggleFavorite' };

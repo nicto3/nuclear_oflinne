@@ -56,3 +56,7 @@ pl_PL.json packages/i18n/src/locales/pl_PL.json
 pt_BR.json packages/i18n/src/locales/pt_BR.json
 ru_RU.json packages/i18n/src/locales/ru_RU.json
 zh_CN.json packages/i18n/src/locales/zh_CN.json
+volume.ts packages/player/src/services/volume.ts
+useVolumeControl.ts packages/player/src/hooks/useVolumeControl.ts
+PlayerBarVolume.tsx packages/ui/src/components/PlayerBar/PlayerBarVolume.tsx
+ConnectedVolume.tsx packages/player/src/components/ConnectedPlayerBar/ConnectedVolume.tsx
