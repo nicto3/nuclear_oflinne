@@ -30,13 +30,15 @@ import { pickArtwork } from '@nuclearplayer/model';
 import type { RepeatMode } from '@nuclearplayer/plugin-sdk';
 
 import { useCoreSetting } from '../hooks/useCoreSetting';
-import { useDominantColor } from '../hooks/useDominantColor';
+import { paletteFromHex, useCoverPalettes } from '../hooks/useDominantColor';
 import { useVolumeControl } from '../hooks/useVolumeControl';
 import { playbackManager } from '../services/playback';
 import { useFavoritesStore } from '../stores/favoritesStore';
+import { useFullscreenBackgroundStore } from '../stores/fullscreenBackgroundStore';
 import { useFullscreenPlayerStore } from '../stores/fullscreenPlayerStore';
 import { useQueueStore } from '../stores/queueStore';
 import { useSoundStore } from '../stores/soundStore';
+import { FullscreenBackgroundSettings } from './FullscreenBackgroundSettings';
 import { FullscreenLyrics } from './FullscreenLyrics';
 
 const WINDOW_CONTROL_STYLES = `
@@ -242,7 +244,21 @@ const FullscreenContent: FC = () => {
   const { isTrackFavorite, addTrack, removeTrack } = useFavoritesStore();
 
   const coverUrl = pickArtwork(track?.artwork, 'cover', 640)?.url;
-  const color = useDominantColor(coverUrl);
+  const palettes = useCoverPalettes(coverUrl);
+  const backgroundMode = useFullscreenBackgroundStore((state) => state.mode);
+  const paletteIndex = useFullscreenBackgroundStore(
+    (state) => state.paletteIndex,
+  );
+  const customColor = useFullscreenBackgroundStore(
+    (state) => state.customColor,
+  );
+  const coverBlur = useFullscreenBackgroundStore((state) => state.coverBlur);
+  const coverDim = useFullscreenBackgroundStore((state) => state.coverDim);
+  const color =
+    backgroundMode === 'custom'
+      ? paletteFromHex(customColor)
+      : (palettes?.[paletteIndex] ?? palettes?.[0] ?? null);
+  const useCoverBackground = backgroundMode === 'cover' && Boolean(coverUrl);
   const isPlaying = status === 'playing';
   const isFavorite = track ? isTrackFavorite(track.source) : false;
   const currentVolume = volume;
@@ -520,11 +536,43 @@ const FullscreenContent: FC = () => {
         padding: '44px 48px 32px',
         boxSizing: 'border-box',
         color: '#fff',
-        background: `linear-gradient(160deg, ${color?.base ?? FALLBACK_BASE} 0%, ${color?.deep ?? FALLBACK_DEEP} 100%)`,
+        background: useCoverBackground
+          ? '#0b0b0b'
+          : `linear-gradient(160deg, ${color?.base ?? FALLBACK_BASE} 0%, ${color?.deep ?? FALLBACK_DEEP} 100%)`,
         transition: 'background 0.6s ease',
         fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif',
       }}
     >
+      {useCoverBackground && (
+        <div
+          aria-hidden
+          data-testid="fullscreen-cover-background"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: -1,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              inset: '-12%',
+              backgroundImage: `url("${coverUrl}")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: `blur(${coverBlur}px)`,
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: `rgba(0,0,0,${coverDim})`,
+            }}
+          />
+        </div>
+      )}
       <WindowControls />
       <button
         type="button"
@@ -543,25 +591,41 @@ const FullscreenContent: FC = () => {
         <XIcon size={22} />
       </button>
 
-      {showLyrics && (
-        <button
-          type="button"
-          aria-label="Lyrics source"
-          title="Lyrics source"
-          onClick={toggleSourcePanel}
-          data-testid="fullscreen-lyrics-source"
+      <button
+        type="button"
+        aria-label="Lyrics and background settings"
+        title="Lyrics and background settings"
+        onClick={toggleSourcePanel}
+        data-testid="fullscreen-lyrics-source"
+        style={{
+          ...iconButton,
+          position: 'absolute',
+          top: 40,
+          right: 66,
+          background: sourcePanelOpen
+            ? 'rgba(255,255,255,0.3)'
+            : 'rgba(0,0,0,0.25)',
+        }}
+      >
+        <PencilIcon size={20} />
+      </button>
+
+      {!showLyrics && sourcePanelOpen && (
+        <div
+          data-testid="fullscreen-settings-card"
           style={{
-            ...iconButton,
             position: 'absolute',
-            top: 40,
-            right: 66,
-            background: sourcePanelOpen
-              ? 'rgba(255,255,255,0.3)'
-              : 'rgba(0,0,0,0.25)',
+            top: 92,
+            right: 14,
+            width: 340,
+            padding: 16,
+            borderRadius: 16,
+            background: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(12px)',
           }}
         >
-          <PencilIcon size={20} />
-        </button>
+          <FullscreenBackgroundSettings palettes={palettes} />
+        </div>
       )}
 
       {mainColumn}
@@ -581,6 +645,7 @@ const FullscreenContent: FC = () => {
             onSeek={(seconds) => useSoundStore.getState().seekTo(seconds)}
             sourcePanelOpen={sourcePanelOpen}
             onCloseSourcePanel={closeSourcePanel}
+            palettes={palettes}
           />
         </div>
       )}

@@ -12,6 +12,7 @@ import {
 import { useTranslation } from '@nuclearplayer/i18n';
 import type { Track } from '@nuclearplayer/model';
 
+import type { Palette } from '../hooks/useDominantColor';
 import { useTrackLyrics } from '../hooks/useTrackLyrics';
 import { buildQueries, cleanTitle } from '../services/lyrics/lrclibProvider';
 import {
@@ -27,8 +28,39 @@ import type {
 } from '../services/lyrics/lyricsTypes';
 import { useLyricsStore } from '../stores/lyricsStore';
 import { getTrackKey } from '../stores/offlineStore';
+import { FullscreenBackgroundSettings } from './FullscreenBackgroundSettings';
 
 const OFFSET_STEP_MS = 100;
+
+const DEFAULT_LABELS: Record<string, string> = {
+  'lyrics.title': 'Lyrics',
+  'lyrics.loading': 'Loading lyrics…',
+  'lyrics.none': 'No lyrics found for this track.',
+  'lyrics.instrumental': 'Instrumental',
+  'lyrics.earlier': 'Show lyrics earlier',
+  'lyrics.later': 'Show lyrics later',
+  'lyrics.error': 'Could not reach the lyrics service.',
+  'lyrics.retry': 'Try again',
+  'lyrics.source': 'Source',
+  'lyrics.sourceNone': 'nothing saved yet',
+  'lyrics.automatic': 'Search automatically again',
+  'lyrics.search': 'Search',
+  'lyrics.searchPlaceholder': 'Artist and title, or a Genius / LRCLIB link',
+  'lyrics.searching': 'Searching…',
+  'lyrics.noResults': 'Nothing found. Try a different query.',
+  'lyrics.suggestions': 'No exact match. Similar results, pick the right one:',
+  'lyrics.synced': 'synced',
+  'lyrics.syncedLikely': 'probably synced',
+  'lyrics.plain': 'text only',
+  'lyrics.back': 'Back to lyrics',
+  'background.title': 'Background',
+};
+
+const useLabels = () => {
+  const { t } = useTranslation('fullscreenPlayer');
+  return (key: string): string =>
+    t(key, { defaultValue: DEFAULT_LABELS[key] ?? key });
+};
 const MUTED = 'rgba(255,255,255,0.7)';
 
 export const findActiveIndex = (lines: SavedLine[], nowMs: number): number => {
@@ -84,7 +116,7 @@ const CandidateList: FC<CandidateListProps> = ({
   busyId,
   onPick,
 }) => {
-  const { t } = useTranslation('fullscreenPlayer');
+  const t = useLabels();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -133,13 +165,20 @@ const CandidateList: FC<CandidateListProps> = ({
 };
 
 type SourcePanelProps = {
+  palettes: Palette[] | null;
   track: Track;
   saved: SavedLyrics | undefined;
   onDone: () => void;
 };
 
-const SourcePanel: FC<SourcePanelProps> = ({ track, saved, onDone }) => {
-  const { t } = useTranslation('fullscreenPlayer');
+const SourcePanel: FC<SourcePanelProps> = ({
+  palettes,
+  track,
+  saved,
+  onDone,
+}) => {
+  const [backgroundOpen, setBackgroundOpen] = useState(false);
+  const t = useLabels();
   const queryClient = useQueryClient();
   const initialQuery = useMemo(() => {
     const first = buildQueries(track)[0];
@@ -204,6 +243,17 @@ const SourcePanel: FC<SourcePanelProps> = ({ track, saved, onDone }) => {
       <div style={{ fontSize: 14, color: MUTED }}>
         {t('lyrics.source')}:{' '}
         {saved ? saved.sourceLabel : t('lyrics.sourceNone')}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <button
+          type="button"
+          style={{ ...smallButton, alignSelf: 'flex-start' }}
+          onClick={() => setBackgroundOpen((open) => !open)}
+          data-testid="background-toggle"
+        >
+          {t('background.title')} {backgroundOpen ? '▾' : '▸'}
+        </button>
+        {backgroundOpen && <FullscreenBackgroundSettings palettes={palettes} />}
       </div>
       <form
         onSubmit={(event) => {
@@ -281,6 +331,7 @@ const SourcePanel: FC<SourcePanelProps> = ({ track, saved, onDone }) => {
 };
 
 type FullscreenLyricsProps = {
+  palettes: Palette[] | null;
   track: Track | undefined;
   seekSeconds: number;
   onSeek: (seconds: number) => void;
@@ -289,13 +340,14 @@ type FullscreenLyricsProps = {
 };
 
 export const FullscreenLyrics: FC<FullscreenLyricsProps> = ({
+  palettes,
   track,
   seekSeconds,
   onSeek,
   sourcePanelOpen,
   onCloseSourcePanel,
 }) => {
-  const { t } = useTranslation('fullscreenPlayer');
+  const t = useLabels();
   const { saved, isLoading, suggestions, error, refetch } =
     useTrackLyrics(track);
   const [offsetMs, setOffsetMs] = useState(0);
@@ -479,7 +531,12 @@ export const FullscreenLyrics: FC<FullscreenLyricsProps> = ({
         )}
       </div>
       {sourcePanelOpen && track ? (
-        <SourcePanel track={track} saved={saved} onDone={onCloseSourcePanel} />
+        <SourcePanel
+          palettes={palettes}
+          track={track}
+          saved={saved}
+          onDone={onCloseSourcePanel}
+        />
       ) : (
         <div
           style={{

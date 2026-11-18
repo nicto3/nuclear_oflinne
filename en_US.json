@@ -804,6 +804,18 @@
       "error": "Could not reach the lyrics service.",
       "retry": "Try again",
       "searchPlaceholder": "Artist and title, or a Genius / LRCLIB link"
+    },
+    "background": {
+      "title": "Background",
+      "palette": "Palette",
+      "color": "Color",
+      "cover": "Cover",
+      "accent": "Main",
+      "secondary": "Second",
+      "mood": "Mood",
+      "blur": "Blur",
+      "dim": "Darkening",
+      "pickColor": "Pick a color"
     }
   }
 }
