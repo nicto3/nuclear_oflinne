@@ -6,7 +6,7 @@ const PERSIST_DELAY_MS = 400;
 
 export type BackgroundMode = 'palette' | 'custom' | 'cover';
 
-type BackgroundSettings = {
+export type BackgroundSettings = {
   mode: BackgroundMode;
   paletteIndex: number;
   customColor: string;
@@ -14,13 +14,16 @@ type BackgroundSettings = {
   coverDim: number;
 };
 
-type BackgroundState = BackgroundSettings & {
+type BackgroundState = {
   loaded: boolean;
+  defaults: BackgroundSettings;
+  byTrack: Record<string, BackgroundSettings>;
   loadFromDisk: () => Promise<void>;
-  update: (patch: Partial<BackgroundSettings>) => void;
+  update: (trackKey: string, patch: Partial<BackgroundSettings>) => void;
+  reset: (trackKey: string) => void;
 };
 
-const DEFAULTS: BackgroundSettings = {
+export const DEFAULT_BACKGROUND: BackgroundSettings = {
   mode: 'palette',
   paletteIndex: 0,
   customColor: '#3b7d2f',
@@ -30,37 +33,62 @@ const DEFAULTS: BackgroundSettings = {
 
 let persistTimer: ReturnType<typeof setTimeout> | undefined;
 
-const pickSettings = (state: BackgroundState): BackgroundSettings => ({
-  mode: state.mode,
-  paletteIndex: state.paletteIndex,
-  customColor: state.customColor,
-  coverBlur: state.coverBlur,
-  coverDim: state.coverDim,
-});
+const schedulePersist = (): void => {
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    const { defaults, byTrack } = useFullscreenBackgroundStore.getState();
+    void store
+      .set('fullscreen.defaults', defaults)
+      .then(() => store.set('fullscreen.byTrack', byTrack))
+      .then(() => store.save());
+  }, PERSIST_DELAY_MS);
+};
 
 export const useFullscreenBackgroundStore = create<BackgroundState>(
   (set, get) => ({
-    ...DEFAULTS,
     loaded: false,
+    defaults: DEFAULT_BACKGROUND,
+    byTrack: {},
 
     loadFromDisk: async () => {
-      const saved = await store.get<Partial<BackgroundSettings>>(
+      const legacy = await store.get<Partial<BackgroundSettings>>(
         'fullscreen.background',
       );
-      set({ ...DEFAULTS, ...saved, loaded: true });
+      const savedDefaults = await store.get<Partial<BackgroundSettings>>(
+        'fullscreen.defaults',
+      );
+      const byTrack =
+        (await store.get<Record<string, BackgroundSettings>>(
+          'fullscreen.byTrack',
+        )) ?? {};
+      set({
+        loaded: true,
+        defaults: { ...DEFAULT_BACKGROUND, ...legacy, ...savedDefaults },
+        byTrack,
+      });
     },
 
-    update: (patch) => {
-      set(patch);
-      clearTimeout(persistTimer);
-      persistTimer = setTimeout(() => {
-        void store
-          .set('fullscreen.background', pickSettings(get()))
-          .then(() => store.save());
-      }, PERSIST_DELAY_MS);
+    update: (trackKey, patch) => {
+      const current = get().byTrack[trackKey] ?? get().defaults;
+      set({
+        byTrack: { ...get().byTrack, [trackKey]: { ...current, ...patch } },
+      });
+      schedulePersist();
+    },
+
+    reset: (trackKey) => {
+      const remaining = { ...get().byTrack };
+      delete remaining[trackKey];
+      set({ byTrack: remaining });
+      schedulePersist();
     },
   }),
 );
+
+export const getBackgroundSettings = (trackKey: string): BackgroundSettings => {
+  const { byTrack, defaults } = useFullscreenBackgroundStore.getState();
+  return byTrack[trackKey] ?? defaults;
+};
 
 export const initializeFullscreenBackgroundStore = async (): Promise<void> => {
   await useFullscreenBackgroundStore.getState().loadFromDisk();

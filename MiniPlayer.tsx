@@ -45,6 +45,7 @@ const EMPTY_STATE: MiniPlayerState = {
   shuffle: false,
   repeat: 'off',
   isFavorite: false,
+  background: null,
 };
 
 const STYLES = `
@@ -218,6 +219,13 @@ export const MiniPlayer: FC = () => {
   const progress =
     state.duration > 0 ? Math.min(1, state.seek / state.duration) : 0;
   const RepeatMode = state.repeat === 'one' ? Repeat1Icon : RepeatIcon;
+  const background = state.background;
+  const cardBackground =
+    background?.kind === 'gradient'
+      ? `linear-gradient(160deg, ${background.base} 0%, ${background.deep} 100%)`
+      : background?.kind === 'cover'
+        ? '#0b0b0b'
+        : 'rgba(28,28,28,0.97)';
 
   return (
     <div
@@ -234,13 +242,42 @@ export const MiniPlayer: FC = () => {
           justifyContent: 'space-between',
           padding: 16,
           borderRadius: 20,
-          background: 'rgba(28,28,28,0.97)',
+          background: cardBackground,
+          position: 'relative',
+          overflow: 'hidden',
+          isolation: 'isolate',
+          transition: 'background 0.5s ease',
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
           color: '#fff',
           fontFamily: 'system-ui, -apple-system, Segoe UI, sans-serif',
         }}
       >
+        {background?.kind === 'cover' && (
+          <div
+            aria-hidden
+            data-testid="mini-cover-background"
+            style={{ position: 'absolute', inset: 0, zIndex: -1 }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                inset: '-15%',
+                backgroundImage: `url("${background.coverUrl}")`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: `blur(${Math.max(2, background.blur * 0.3)}px)`,
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: `rgba(0,0,0,${background.dim})`,
+              }}
+            />
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div
             style={{

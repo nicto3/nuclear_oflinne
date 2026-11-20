@@ -29,13 +29,14 @@ import { useTranslation } from '@nuclearplayer/i18n';
 import { pickArtwork } from '@nuclearplayer/model';
 import type { RepeatMode } from '@nuclearplayer/plugin-sdk';
 
+import { useBackgroundSettings } from '../hooks/useBackgroundSettings';
 import { useCoreSetting } from '../hooks/useCoreSetting';
 import { paletteFromHex, useCoverPalettes } from '../hooks/useDominantColor';
 import { useVolumeControl } from '../hooks/useVolumeControl';
 import { playbackManager } from '../services/playback';
 import { useFavoritesStore } from '../stores/favoritesStore';
-import { useFullscreenBackgroundStore } from '../stores/fullscreenBackgroundStore';
 import { useFullscreenPlayerStore } from '../stores/fullscreenPlayerStore';
+import { getTrackKey } from '../stores/offlineStore';
 import { useQueueStore } from '../stores/queueStore';
 import { useSoundStore } from '../stores/soundStore';
 import { FullscreenBackgroundSettings } from './FullscreenBackgroundSettings';
@@ -245,15 +246,15 @@ const FullscreenContent: FC = () => {
 
   const coverUrl = pickArtwork(track?.artwork, 'cover', 640)?.url;
   const palettes = useCoverPalettes(coverUrl);
-  const backgroundMode = useFullscreenBackgroundStore((state) => state.mode);
-  const paletteIndex = useFullscreenBackgroundStore(
-    (state) => state.paletteIndex,
-  );
-  const customColor = useFullscreenBackgroundStore(
-    (state) => state.customColor,
-  );
-  const coverBlur = useFullscreenBackgroundStore((state) => state.coverBlur);
-  const coverDim = useFullscreenBackgroundStore((state) => state.coverDim);
+  const trackKey = track ? getTrackKey(track) : '';
+  const { settings: background } = useBackgroundSettings(trackKey);
+  const {
+    mode: backgroundMode,
+    paletteIndex,
+    customColor,
+    coverBlur,
+    coverDim,
+  } = background;
   const color =
     backgroundMode === 'custom'
       ? paletteFromHex(customColor)
@@ -624,7 +625,10 @@ const FullscreenContent: FC = () => {
             backdropFilter: 'blur(12px)',
           }}
         >
-          <FullscreenBackgroundSettings palettes={palettes} />
+          <FullscreenBackgroundSettings
+            trackKey={trackKey}
+            palettes={palettes}
+          />
         </div>
       )}
 

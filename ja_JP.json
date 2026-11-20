@@ -794,7 +794,8 @@
       "mood": "Mood",
       "blur": "Blur",
       "dim": "Darkening",
-      "pickColor": "Pick a color"
+      "pickColor": "Pick a color",
+      "reset": "Reset to automatic"
     }
   }
 }

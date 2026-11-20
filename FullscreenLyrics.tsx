@@ -253,7 +253,12 @@ const SourcePanel: FC<SourcePanelProps> = ({
         >
           {t('background.title')} {backgroundOpen ? '▾' : '▸'}
         </button>
-        {backgroundOpen && <FullscreenBackgroundSettings palettes={palettes} />}
+        {backgroundOpen && (
+          <FullscreenBackgroundSettings
+            trackKey={getTrackKey(track)}
+            palettes={palettes}
+          />
+        )}
       </div>
       <form
         onSubmit={(event) => {

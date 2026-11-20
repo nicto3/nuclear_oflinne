@@ -2,15 +2,22 @@ import { emit, listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 import { pickArtwork } from '@nuclearplayer/model';
 
+import { getCoverPalettes } from '../../hooks/useDominantColor';
 import {
   MINI_PLAYER_COMMAND_EVENT,
   MINI_PLAYER_READY_EVENT,
   MINI_PLAYER_STATE_EVENT,
   MINI_PLAYER_VISIBILITY_EVENT,
+  type MiniBackground,
   type MiniPlayerCommand,
   type MiniPlayerState,
 } from '../../miniPlayer/miniPlayerTypes';
 import { useFavoritesStore } from '../../stores/favoritesStore';
+import {
+  getBackgroundSettings,
+  useFullscreenBackgroundStore,
+} from '../../stores/fullscreenBackgroundStore';
+import { getTrackKey } from '../../stores/offlineStore';
 import { useQueueStore } from '../../stores/queueStore';
 import {
   getSetting,
@@ -21,6 +28,7 @@ import { useSoundStore } from '../../stores/soundStore';
 import { Logger } from '../logger';
 import { playbackManager } from '../playback';
 import { setVolume, toggleMute } from '../volume';
+import { resolveMiniBackground } from './miniBackground';
 
 const SEEK_PUBLISH_INTERVAL_MS = 400;
 
@@ -32,6 +40,37 @@ const VOLUME_SETTING = 'core.playback.volume';
 const readRepeat = (): MiniPlayerState['repeat'] => {
   const value = getSetting(REPEAT_SETTING);
   return REPEAT_MODES.find((mode) => mode === value) ?? 'off';
+};
+
+let currentBackground: MiniBackground | null = null;
+let backgroundSignature = '';
+let onBackgroundResolved: (() => void) | undefined;
+
+const syncBackground = (): void => {
+  const track = useQueueStore.getState().getCurrentItem()?.track;
+  if (!track) {
+    currentBackground = null;
+    backgroundSignature = '';
+    return;
+  }
+  const trackKey = getTrackKey(track);
+  const settings = getBackgroundSettings(trackKey);
+  const coverUrl = pickArtwork(track.artwork, 'cover', 640)?.url;
+  const signature = `${trackKey}|${coverUrl}|${JSON.stringify(settings)}`;
+  if (signature === backgroundSignature) {
+    return;
+  }
+  backgroundSignature = signature;
+  currentBackground = null;
+
+  void resolveMiniBackground(settings, coverUrl, getCoverPalettes).then(
+    (resolved) => {
+      if (signature === backgroundSignature) {
+        currentBackground = resolved;
+        onBackgroundResolved?.();
+      }
+    },
+  );
 };
 
 const buildSnapshot = (): MiniPlayerState => {
@@ -53,6 +92,7 @@ const buildSnapshot = (): MiniPlayerState => {
     isFavorite: track
       ? useFavoritesStore.getState().isTrackFavorite(track.source)
       : false,
+    background: currentBackground,
   };
 };
 
@@ -67,6 +107,7 @@ const snapshotKey = (state: MiniPlayerState): string =>
     state.shuffle,
     state.repeat,
     state.isFavorite,
+    JSON.stringify(state.background),
   ].join('|');
 
 const handleCommand = (command: MiniPlayerCommand): void => {
@@ -119,6 +160,7 @@ export const initMiniPlayerBridge = async (): Promise<() => void> => {
   let lastPublishedAt = 0;
 
   const publish = (force: boolean) => {
+    syncBackground();
     const snapshot = buildSnapshot();
     const key = snapshotKey(snapshot);
     const now = Date.now();
@@ -148,11 +190,17 @@ export const initMiniPlayerBridge = async (): Promise<() => void> => {
     const unsubscribeFavorites = useFavoritesStore.subscribe(() =>
       publish(false),
     );
+    const unsubscribeBackground = useFullscreenBackgroundStore.subscribe(() =>
+      publish(false),
+    );
+    onBackgroundResolved = () => publish(true);
     unsubscribeStores = () => {
       unsubscribeQueue();
       unsubscribeSound();
       unsubscribeSettings();
       unsubscribeFavorites();
+      unsubscribeBackground();
+      onBackgroundResolved = undefined;
     };
   };
 

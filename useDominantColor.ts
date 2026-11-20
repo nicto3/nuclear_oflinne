@@ -214,6 +214,27 @@ export const extractPalettes = async (
   return buildPalettes(data);
 };
 
+const pending = new Map<string, Promise<Palette[] | null>>();
+
+export const getCoverPalettes = (url: string): Promise<Palette[] | null> => {
+  if (cache.has(url)) {
+    return Promise.resolve(cache.get(url) ?? null);
+  }
+  const inFlight = pending.get(url);
+  if (inFlight) {
+    return inFlight;
+  }
+  const promise = extractPalettes(url)
+    .catch(() => null)
+    .then((result) => {
+      cache.set(url, result);
+      pending.delete(url);
+      return result;
+    });
+  pending.set(url, promise);
+  return promise;
+};
+
 export const useCoverPalettes = (url?: string): Palette[] | null => {
   const [palettes, setPalettes] = useState<Palette[] | null>(
     url ? (cache.get(url) ?? null) : null,
@@ -230,14 +251,11 @@ export const useCoverPalettes = (url?: string): Palette[] | null => {
     }
 
     let cancelled = false;
-    extractPalettes(url)
-      .catch(() => null)
-      .then((result) => {
-        cache.set(url, result);
-        if (!cancelled) {
-          setPalettes(result);
-        }
-      });
+    void getCoverPalettes(url).then((result) => {
+      if (!cancelled) {
+        setPalettes(result);
+      }
+    });
 
     return () => {
       cancelled = true;

@@ -62,3 +62,5 @@ PlayerBarVolume.tsx packages/ui/src/components/PlayerBar/PlayerBarVolume.tsx
 ConnectedVolume.tsx packages/player/src/components/ConnectedPlayerBar/ConnectedVolume.tsx
 fullscreenBackgroundStore.ts packages/player/src/stores/fullscreenBackgroundStore.ts
 FullscreenBackgroundSettings.tsx packages/player/src/components/FullscreenBackgroundSettings.tsx
+useBackgroundSettings.ts packages/player/src/hooks/useBackgroundSettings.ts
+miniBackground.ts packages/player/src/services/miniPlayer/miniBackground.ts

@@ -2,11 +2,9 @@ import { type CSSProperties, type FC } from 'react';
 
 import { useTranslation } from '@nuclearplayer/i18n';
 
+import { useBackgroundSettings } from '../hooks/useBackgroundSettings';
 import type { Palette } from '../hooks/useDominantColor';
-import {
-  useFullscreenBackgroundStore,
-  type BackgroundMode,
-} from '../stores/fullscreenBackgroundStore';
+import type { BackgroundMode } from '../stores/fullscreenBackgroundStore';
 
 const MUTED = 'rgba(255,255,255,0.7)';
 
@@ -21,6 +19,7 @@ const DEFAULT_LABELS: Record<string, string> = {
   'background.blur': 'Blur',
   'background.dim': 'Darkening',
   'background.pickColor': 'Pick a color',
+  'background.reset': 'Reset to automatic',
 };
 
 const chipStyle = (active: boolean): CSSProperties => ({
@@ -33,26 +32,20 @@ const chipStyle = (active: boolean): CSSProperties => ({
 });
 
 type FullscreenBackgroundSettingsProps = {
+  trackKey: string;
   palettes: Palette[] | null;
 };
 
 export const FullscreenBackgroundSettings: FC<
   FullscreenBackgroundSettingsProps
-> = ({ palettes }) => {
+> = ({ trackKey, palettes }) => {
   const { t } = useTranslation('fullscreenPlayer');
   const tr = (key: string): string =>
     t(key, { defaultValue: DEFAULT_LABELS[key] ?? key });
 
-  const mode = useFullscreenBackgroundStore((state) => state.mode);
-  const paletteIndex = useFullscreenBackgroundStore(
-    (state) => state.paletteIndex,
-  );
-  const customColor = useFullscreenBackgroundStore(
-    (state) => state.customColor,
-  );
-  const coverBlur = useFullscreenBackgroundStore((state) => state.coverBlur);
-  const coverDim = useFullscreenBackgroundStore((state) => state.coverDim);
-  const update = useFullscreenBackgroundStore((state) => state.update);
+  const { settings, hasOverride, update, reset } =
+    useBackgroundSettings(trackKey);
+  const { mode, paletteIndex, customColor, coverBlur, coverDim } = settings;
 
   const modes: { id: BackgroundMode; label: string }[] = [
     { id: 'palette', label: tr('background.palette') },
@@ -66,6 +59,16 @@ export const FullscreenBackgroundSettings: FC<
       style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
     >
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {hasOverride && (
+          <button
+            type="button"
+            style={chipStyle(false)}
+            onClick={reset}
+            data-testid="background-reset"
+          >
+            {tr('background.reset')}
+          </button>
+        )}
         {modes.map((item) => (
           <button
             key={item.id}
